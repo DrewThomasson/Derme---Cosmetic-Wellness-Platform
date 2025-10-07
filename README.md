@@ -2,8 +2,10 @@
 Software Engineering Project
 
 <p align="center">
-  <img src="https://i.imgur.com/bWc1g22.png" alt="Derme Banner" width="600"/>
+  <img width="770" height="291" alt="Screenshot 2025-10-06 at 8 54 58 PM" src="https://github.com/user-attachments/assets/5bbf9243-58ee-4f15-96b6-def4d5461f4c" />
 </p>
+
+
 
 # Derme - Cosmetic Wellness Platform
 
