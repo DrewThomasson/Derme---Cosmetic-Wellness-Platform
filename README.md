@@ -19,7 +19,7 @@ Software Engineering Project
 - [Installation](#installation)
   - [Prerequisites](#prerequisites)
   - [Setup Steps](#setup-steps)
-- [Demo](#hugging-face)
+- [Demo](#demo)
 - [Team Members](#team-members)
 
 ---
@@ -78,6 +78,14 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
+
+---
+
+## Demo
+
+Try out our live demo on Hugging Face Spaces:  
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Demo-yellow?style=flat&logo=huggingface)](https://huggingface.co/spaces/drewThomasson/DermTest)
+
 ---
 
 ## Team Members
