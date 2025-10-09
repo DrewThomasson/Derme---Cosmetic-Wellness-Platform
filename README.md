@@ -22,7 +22,26 @@ Derme is a mobile application designed to help users with sensitive skin and all
 
 ## 2.0 Problem Statement
 
-*[This section is a placeholder. Please copy and paste the final "Problem Statement" from your project document here once it is written.]*
+Many individuals with sensitive skin and cosmetic allergies struggle to identify safe products. Reading ingredient labels can be time-consuming and difficult, especially when ingredients have multiple names. Derme solves this problem by providing an easy-to-use web application that:
+
+- Scans ingredient labels using OCR technology
+- Identifies potential allergens based on user profiles
+- Cross-references ingredients against known allergen databases
+- Handles ingredient synonyms and alternative names
+- Tracks safe products for future reference
+
+## 2.1 Implementation
+
+This repository contains a fully functional Flask web application that implements the core features of Derme. The application includes:
+
+- **User Authentication**: Secure registration and login system
+- **Allergen Management**: Users can add, track, and remove their personal allergens
+- **OCR Scanning**: Upload images of ingredient labels for automatic text extraction
+- **Ingredient Analysis**: Intelligent analysis that identifies allergens and cross-references with databases
+- **Synonym Database**: Handles multiple names for the same ingredients
+- **Product Tracking**: Save and view safe products
+
+For deployment instructions, see [README_DEPLOYMENT.md](README_DEPLOYMENT.md)
 
 ---
 
