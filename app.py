@@ -507,6 +507,81 @@ def potential_allergens_page():
     potential = detect_potential_allergens(current_user.id)
     return render_template('potential_allergens.html', potential_allergens=potential)
 
+@app.route('/potential-allergens/ingredient/<ingredient_name>')
+@login_required
+def view_ingredient_products(ingredient_name):
+    """View all allergic products that contain a specific ingredient"""
+    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).all()
+    
+    # Filter products that contain this ingredient
+    products_with_ingredient = []
+    for product in allergic_products:
+        if ingredient_name.lower() in product.ingredients.lower():
+            products_with_ingredient.append(product)
+    
+    return render_template('ingredient_products.html', 
+                         ingredient_name=ingredient_name,
+                         products=products_with_ingredient)
+
+@app.route('/potential-allergens/edit/<ingredient_name>', methods=['POST'])
+@login_required
+def edit_potential_allergen(ingredient_name):
+    """Edit/correct an ingredient name in all allergic products"""
+    new_name = request.form.get('new_name')
+    
+    if not new_name:
+        flash('New ingredient name is required', 'error')
+        return redirect(url_for('potential_allergens_page'))
+    
+    # Find and update all allergic products containing this ingredient
+    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).all()
+    updated_count = 0
+    
+    for product in allergic_products:
+        ingredients = parse_ingredients(product.ingredients)
+        updated_ingredients = []
+        
+        for ing in ingredients:
+            if ing.lower() == ingredient_name.lower():
+                updated_ingredients.append(new_name)
+                updated_count += 1
+            else:
+                updated_ingredients.append(ing)
+        
+        if updated_count > 0:
+            product.ingredients = ', '.join(updated_ingredients)
+    
+    if updated_count > 0:
+        db.session.commit()
+        flash(f'Updated "{ingredient_name}" to "{new_name}" in {updated_count} instance(s)', 'success')
+    else:
+        flash('No instances found to update', 'warning')
+    
+    return redirect(url_for('potential_allergens_page'))
+
+@app.route('/potential-allergens/remove/<ingredient_name>', methods=['POST'])
+@login_required
+def remove_potential_allergen(ingredient_name):
+    """Remove an ingredient from all allergic products"""
+    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).all()
+    removed_count = 0
+    
+    for product in allergic_products:
+        ingredients = parse_ingredients(product.ingredients)
+        filtered_ingredients = [ing for ing in ingredients if ing.lower() != ingredient_name.lower()]
+        
+        if len(filtered_ingredients) < len(ingredients):
+            product.ingredients = ', '.join(filtered_ingredients)
+            removed_count += 1
+    
+    if removed_count > 0:
+        db.session.commit()
+        flash(f'Removed "{ingredient_name}" from {removed_count} product(s)', 'success')
+    else:
+        flash('No instances found to remove', 'warning')
+    
+    return redirect(url_for('potential_allergens_page'))
+
 
 # Initialize database
 def init_db():

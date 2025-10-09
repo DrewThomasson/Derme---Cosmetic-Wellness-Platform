@@ -13,27 +13,36 @@
             {% if products %}
                 <div class="allergen-table">
                     {% for product in products %}
-                        <div class="allergen-row">
-                            <div class="allergen-info">
-                                <span class="allergen-name">{{ product.product_name }}</span>
-                                <span class="severity-badge severity-{{ product.reaction_severity }}">
-                                    {{ product.reaction_severity }}
-                                </span>
-                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">
-                                    Scanned: {{ product.scan_date.strftime('%B %d, %Y') }}
+                        <div class="product-detail-card">
+                            <div class="product-header">
+                                <div>
+                                    <span class="allergen-name">{{ product.product_name }}</span>
+                                    <span class="severity-badge severity-{{ product.reaction_severity }}">
+                                        {{ product.reaction_severity }}
+                                    </span>
                                 </div>
-                                <details style="margin-top: 0.5rem;">
-                                    <summary style="cursor: pointer; color: var(--primary-color);">View Ingredients</summary>
-                                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--light-bg); border-radius: 4px;">
-                                        {{ product.ingredients }}
-                                    </div>
-                                </details>
+                                <form method="POST" action="{{ url_for('delete_allergic_product', product_id=product.id) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Are you sure you want to remove this product?');">
+                                    <button type="submit" class="btn btn-danger btn-small">Remove</button>
+                                </form>
                             </div>
-                            <form method="POST" action="{{ url_for('delete_allergic_product', product_id=product.id) }}" 
-                                  style="display: inline;"
-                                  onsubmit="return confirm('Are you sure you want to remove this product?');">
-                                <button type="submit" class="btn btn-danger btn-small">Remove</button>
-                            </form>
+                            
+                            <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.5rem;">
+                                Scanned: {{ product.scan_date.strftime('%B %d, %Y') }}
+                            </div>
+                            
+                            <details open style="margin-top: 1rem;">
+                                <summary style="cursor: pointer; color: var(--primary-color); font-weight: 500;">
+                                    Ingredients ({{ product.ingredients.split(',')|length }})
+                                </summary>
+                                <div class="ingredients-list" style="margin-top: 0.75rem;">
+                                    {% set ingredient_list = product.ingredients.split(',') %}
+                                    {% for ing in ingredient_list %}
+                                        <span class="ingredient-chip">{{ ing.strip() }}</span>
+                                    {% endfor %}
+                                </div>
+                            </details>
                         </div>
                     {% endfor %}
                 </div>
@@ -51,4 +60,26 @@
         <a href="{{ url_for('potential_allergens_page') }}" class="btn btn-secondary">View Potential Allergens</a>
     </div>
 </div>
+
+<style>
+.product-detail-card {
+    background: var(--light-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--danger-color);
+}
+
+.product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ingredients-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+</style>
 {% endblock %}
