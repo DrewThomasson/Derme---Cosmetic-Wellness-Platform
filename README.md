@@ -42,7 +42,9 @@ Derme is a mobile application designed to help users with sensitive skin and all
 
 ## Problem Statement
 
-*[This section is a placeholder. Please copy and paste the final "Problem Statement" from your project document here once it is written.]*
+Consumers with sensitive skin and allergies face a significant challenge in identifying potential irritants within the complex ingredient lists of cosmetic and skincare products. This difficulty creates a barrier for individuals wishing to safely purchase new products and makes it hard to provide accurate information to dermatologists when trying to diagnose the source of an adverse reaction.
+
+The process of tracking ingredients, cross-referencing them with known allergens, and correlating them to specific skin reactions is manually intensive and often unreliable. This leaves users feeling frustrated and disempowered, turning the proactive management of their skin health into a constant struggle. Derme aims to solve this by providing a centralized, intelligent platform to simplify ingredient analysis and allergy management.
 
 ---
 
