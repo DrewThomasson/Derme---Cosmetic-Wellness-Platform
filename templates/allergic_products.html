@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Allergic Products - Derme{% endblock %}
+
+{% block content %}
+<div class="allergens-page">
+    <h1>⚠️ Products You Reacted To</h1>
+    <p class="subtitle">Track products that caused allergic reactions</p>
+    
+    <div class="allergens-container">
+        <div class="allergen-list-card">
+            <h2>Your Allergic Product List</h2>
+            {% if products %}
+                <div class="allergen-table">
+                    {% for product in products %}
+                        <div class="allergen-row">
+                            <div class="allergen-info">
+                                <span class="allergen-name">{{ product.product_name }}</span>
+                                <span class="severity-badge severity-{{ product.reaction_severity }}">
+                                    {{ product.reaction_severity }}
+                                </span>
+                                <div style="font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem;">
+                                    Scanned: {{ product.scan_date.strftime('%B %d, %Y') }}
+                                </div>
+                                <details style="margin-top: 0.5rem;">
+                                    <summary style="cursor: pointer; color: var(--primary-color);">View Ingredients</summary>
+                                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--light-bg); border-radius: 4px;">
+                                        {{ product.ingredients }}
+                                    </div>
+                                </details>
+                            </div>
+                            <form method="POST" action="{{ url_for('delete_allergic_product', product_id=product.id) }}" 
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Are you sure you want to remove this product?');">
+                                <button type="submit" class="btn btn-danger btn-small">Remove</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">
+                    No allergic products recorded yet. When scanning products, you can save them as "Allergic" if they caused a reaction.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="action-buttons" style="margin-top: 2rem;">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        <a href="{{ url_for('scan') }}" class="btn btn-primary">Scan Another Product</a>
+        <a href="{{ url_for('potential_allergens_page') }}" class="btn btn-secondary">View Potential Allergens</a>
+    </div>
+</div>
+{% endblock %}

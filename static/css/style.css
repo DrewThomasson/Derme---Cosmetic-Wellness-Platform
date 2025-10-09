@@ -636,6 +636,55 @@ main {
     color: var(--danger-color);
 }
 
+.btn-danger .stat-number {
+    color: var(--danger-color);
+}
+
+.btn-demo {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-demo:hover {
+    background-color: #5a6268;
+}
+
+.save-product-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.save-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.category-badge {
+    padding: 0.25rem 0.5rem;
+    background: #e2e3e5;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+.view-more {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.view-more a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.view-more a:hover {
+    text-decoration: underline;
+}
+
 .stat-warning .stat-number {
     color: var(--warning-color);
 }

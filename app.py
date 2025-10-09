@@ -34,6 +34,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     allergens = db.relationship('UserAllergen', backref='user', lazy=True, cascade='all, delete-orphan')
     safe_products = db.relationship('SafeProduct', backref='user', lazy=True, cascade='all, delete-orphan')
+    allergic_products = db.relationship('AllergicProduct', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -53,6 +54,14 @@ class SafeProduct(db.Model):
     product_name = db.Column(db.String(200), nullable=False)
     ingredients = db.Column(db.Text, nullable=False)
     scan_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+class AllergicProduct(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_name = db.Column(db.String(200), nullable=False)
+    ingredients = db.Column(db.Text, nullable=False)
+    scan_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    reaction_severity = db.Column(db.String(50), default='unknown')  # mild, moderate, severe, unknown
 
 class IngredientSynonym(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -109,6 +118,55 @@ def parse_ingredients(text):
     
     return cleaned
 
+def detect_potential_allergens(user_id):
+    """Cross-reference allergic and safe products to find potential allergens"""
+    # Get all allergic and safe products for the user
+    allergic_products = AllergicProduct.query.filter_by(user_id=user_id).all()
+    safe_products = SafeProduct.query.filter_by(user_id=user_id).all()
+    
+    if not allergic_products or not safe_products:
+        return []
+    
+    # Parse ingredients from all products
+    allergic_ingredients = set()
+    safe_ingredients = set()
+    
+    for product in allergic_products:
+        ingredients = parse_ingredients(product.ingredients)
+        for ing in ingredients:
+            normalized = normalize_ingredient(ing)
+            # Include synonyms
+            synonyms = find_ingredient_synonyms(ing)
+            allergic_ingredients.update(synonyms)
+    
+    for product in safe_products:
+        ingredients = parse_ingredients(product.ingredients)
+        for ing in ingredients:
+            normalized = normalize_ingredient(ing)
+            # Include synonyms
+            synonyms = find_ingredient_synonyms(ing)
+            safe_ingredients.update(synonyms)
+    
+    # Find ingredients that are ONLY in allergic products, not in safe products
+    potential_allergens = allergic_ingredients - safe_ingredients
+    
+    # Get actual ingredient names (not just normalized)
+    result = []
+    for product in allergic_products:
+        ingredients = parse_ingredients(product.ingredients)
+        for ing in ingredients:
+            synonyms = find_ingredient_synonyms(ing)
+            if any(syn in potential_allergens for syn in synonyms):
+                if ing not in [r['name'] for r in result]:
+                    result.append({
+                        'name': ing,
+                        'count': sum(1 for p in allergic_products if ing.lower() in p.ingredients.lower())
+                    })
+    
+    # Sort by frequency
+    result.sort(key=lambda x: x['count'], reverse=True)
+    return result
+
 def analyze_ingredients(ingredients_list, user_id):
     """Analyze ingredients against user allergens and known allergen database"""
     user_allergens = UserAllergen.query.filter_by(user_id=user_id).all()
@@ -123,8 +181,13 @@ def analyze_ingredients(ingredients_list, user_id):
         'allergens_found': [],
         'safe_ingredients': [],
         'unknown_ingredients': [],
-        'warnings': []
+        'warnings': [],
+        'potential_allergens': []
     }
+    
+    # Get potential allergens from cross-referencing
+    potential_allergens = detect_potential_allergens(user_id)
+    potential_allergen_names = set([p['name'].lower() for p in potential_allergens])
     
     for ingredient in ingredients_list:
         normalized = normalize_ingredient(ingredient)
@@ -149,6 +212,14 @@ def analyze_ingredients(ingredients_list, user_id):
                 break
         
         if not found_allergen:
+            # Check against potential allergens from cross-referencing
+            if normalized in potential_allergen_names:
+                results['potential_allergens'].append({
+                    'name': ingredient,
+                    'reason': 'Found in allergic products but not in safe products'
+                })
+                continue
+            
             # Check against known allergen database
             known = KnownAllergen.query.filter(
                 db.func.lower(KnownAllergen.name).in_(synonyms)
@@ -169,6 +240,41 @@ def analyze_ingredients(ingredients_list, user_id):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/demo-login')
+def demo_login():
+    """Demo/test mode - automatically log in as demo user"""
+    # Try to find existing demo user
+    demo_user = User.query.filter_by(username='demo_user').first()
+    
+    if not demo_user:
+        # Create demo user if doesn't exist
+        demo_user = User(username='demo_user', email='demo@derme-app.com')
+        demo_user.set_password('demo123')
+        db.session.add(demo_user)
+        db.session.commit()
+        
+        # Add some sample allergens for demo
+        sample_allergens = [
+            ('Fragrance', 'severe'),
+            ('Parabens', 'moderate'),
+            ('SLS', 'mild')
+        ]
+        
+        for allergen_name, severity in sample_allergens:
+            allergen = UserAllergen(
+                user_id=demo_user.id,
+                ingredient_name=allergen_name,
+                severity=severity
+            )
+            db.session.add(allergen)
+        
+        db.session.commit()
+    
+    # Log in the demo user
+    login_user(demo_user, remember=True)
+    flash('Logged in as demo user for testing', 'info')
+    return redirect(url_for('dashboard'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -238,8 +344,15 @@ def logout():
 @login_required
 def dashboard():
     allergens = UserAllergen.query.filter_by(user_id=current_user.id).all()
-    safe_products = SafeProduct.query.filter_by(user_id=current_user.id).order_by(SafeProduct.scan_date.desc()).limit(10).all()
-    return render_template('dashboard.html', allergens=allergens, safe_products=safe_products)
+    safe_products = SafeProduct.query.filter_by(user_id=current_user.id).order_by(SafeProduct.scan_date.desc()).limit(5).all()
+    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.desc()).limit(5).all()
+    potential_allergens = detect_potential_allergens(current_user.id)[:5]  # Top 5
+    
+    return render_template('dashboard.html', 
+                         allergens=allergens, 
+                         safe_products=safe_products,
+                         allergic_products=allergic_products,
+                         potential_allergens=potential_allergens)
 
 @app.route('/allergens', methods=['GET', 'POST'])
 @login_required
@@ -344,18 +457,56 @@ def save_product():
         return jsonify({'error': 'No scan results to save'}), 400
     
     product_name = request.form.get('product_name', 'Unknown Product')
+    product_type = request.form.get('product_type', 'safe')  # 'safe' or 'allergic'
     
-    product = SafeProduct(
-        user_id=current_user.id,
-        product_name=product_name,
-        ingredients=', '.join(results['ingredients'])
-    )
+    if product_type == 'allergic':
+        severity = request.form.get('reaction_severity', 'unknown')
+        product = AllergicProduct(
+            user_id=current_user.id,
+            product_name=product_name,
+            ingredients=', '.join(results['ingredients']),
+            reaction_severity=severity
+        )
+        flash('Allergic product saved successfully', 'success')
+    else:
+        product = SafeProduct(
+            user_id=current_user.id,
+            product_name=product_name,
+            ingredients=', '.join(results['ingredients'])
+        )
+        flash('Safe product saved successfully', 'success')
     
     db.session.add(product)
     db.session.commit()
     
-    flash('Product saved successfully', 'success')
     return redirect(url_for('dashboard'))
+
+@app.route('/products/allergic')
+@login_required
+def allergic_products():
+    products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.desc()).all()
+    return render_template('allergic_products.html', products=products)
+
+@app.route('/products/allergic/delete/<int:product_id>', methods=['POST'])
+@login_required
+def delete_allergic_product(product_id):
+    product = AllergicProduct.query.get_or_404(product_id)
+    
+    if product.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('allergic_products'))
+    
+    db.session.delete(product)
+    db.session.commit()
+    flash('Allergic product removed', 'success')
+    return redirect(url_for('allergic_products'))
+
+@app.route('/potential-allergens')
+@login_required
+def potential_allergens_page():
+    potential = detect_potential_allergens(current_user.id)
+    return render_template('potential_allergens.html', potential_allergens=potential)
+
 
 # Initialize database
 def init_db():

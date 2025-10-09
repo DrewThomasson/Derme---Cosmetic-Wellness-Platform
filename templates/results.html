@@ -70,6 +70,23 @@
     </div>
     {% endif %}
     
+    {% if results.analysis.potential_allergens %}
+    <div class="results-section warning">
+        <h2>🔬 Potential Allergens (Based on Your History)</h2>
+        <p style="margin-bottom: 1rem;">These ingredients appear in products you reacted to but not in products that were safe for you.</p>
+        <div class="ingredient-list">
+            {% for potential in results.analysis.potential_allergens %}
+                <div class="ingredient-item warning-item">
+                    <div>
+                        <span class="ingredient-name">{{ potential.name }}</span>
+                    </div>
+                    <p class="ingredient-description">{{ potential.reason }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
     {% if results.analysis.safe_ingredients %}
     <div class="results-section success">
         <h2>✅ Safe Ingredients</h2>
@@ -91,14 +108,43 @@
     </div>
     
     <div class="action-buttons">
-        {% if allergen_count == 0 %}
-            <form method="POST" action="{{ url_for('save_product') }}" style="display: inline;">
-                <input type="text" name="product_name" placeholder="Product name (optional)" class="inline-input">
-                <button type="submit" class="btn btn-success">Save as Safe Product</button>
+        <div class="save-product-section">
+            <form method="POST" action="{{ url_for('save_product') }}" id="saveForm">
+                <input type="text" name="product_name" placeholder="Product name (required)" class="inline-input" required>
+                <input type="hidden" name="product_type" id="productType" value="safe">
+                <input type="hidden" name="reaction_severity" id="reactionSeverity" value="unknown">
+                
+                <div class="save-buttons">
+                    <button type="button" onclick="saveAs('safe')" class="btn btn-success">✅ Save as Safe</button>
+                    <button type="button" onclick="saveAs('allergic')" class="btn btn-danger">⚠️ Save as Allergic</button>
+                </div>
+                
+                <div id="severitySelector" style="display: none; margin-top: 1rem;">
+                    <label for="severity">Reaction Severity:</label>
+                    <select id="severity" onchange="document.getElementById('reactionSeverity').value = this.value">
+                        <option value="unknown">Unknown</option>
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                    </select>
+                    <button type="submit" class="btn btn-danger">Confirm Save as Allergic</button>
+                </div>
             </form>
-        {% endif %}
+        </div>
         <a href="{{ url_for('scan') }}" class="btn btn-secondary">Scan Another Product</a>
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
     </div>
+    
+    <script>
+    function saveAs(type) {
+        document.getElementById('productType').value = type;
+        if (type === 'safe') {
+            document.getElementById('severitySelector').style.display = 'none';
+            document.getElementById('saveForm').submit();
+        } else {
+            document.getElementById('severitySelector').style.display = 'block';
+        }
+    }
+    </script>
 </div>
 {% endblock %}
