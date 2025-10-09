@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Potential Allergens - Derme{% endblock %}
+
+{% block content %}
+<div class="allergens-page">
+    <h1>🔬 Potential Allergens</h1>
+    <p class="subtitle">Ingredients found in your allergic products but not in safe products</p>
+    
+    <div class="allergens-container">
+        <div class="allergen-list-card">
+            {% if potential_allergens %}
+                <div class="allergen-table">
+                    {% for potential in potential_allergens %}
+                        <div class="allergen-row">
+                            <div class="allergen-info">
+                                <span class="allergen-name">{{ potential.name }}</span>
+                                <span class="category-badge">Found in {{ potential.count }} allergic product(s)</span>
+                            </div>
+                            <form method="POST" action="{{ url_for('manage_allergens') }}" style="display: inline;">
+                                <input type="hidden" name="ingredient_name" value="{{ potential.name }}">
+                                <input type="hidden" name="severity" value="unknown">
+                                <button type="submit" class="btn btn-primary btn-small">Add to My Allergens</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">
+                    No potential allergens detected yet. To identify patterns:
+                    <br><br>
+                    1. Scan and save products that caused reactions as "Allergic"
+                    <br>
+                    2. Scan and save products that were safe as "Safe"
+                    <br>
+                    3. The system will identify ingredients that appear only in allergic products
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <h3>💡 How It Works</h3>
+        <p>This analysis compares ingredients across all your scanned products. Ingredients that appear frequently in products you reacted to, but never in safe products, are flagged as potential allergens worth investigating further.</p>
+    </div>
+    
+    <div class="action-buttons" style="margin-top: 2rem;">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        <a href="{{ url_for('scan') }}" class="btn btn-primary">Scan Another Product</a>
+    </div>
+</div>
+{% endblock %}

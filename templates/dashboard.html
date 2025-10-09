@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Derme{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>Quick Actions</h2>
+            <div class="action-buttons">
+                <a href="{{ url_for('scan') }}" class="btn btn-primary">
+                    📸 Scan New Product
+                </a>
+                <a href="{{ url_for('manage_allergens') }}" class="btn btn-secondary">
+                    ⚠️ Manage Allergens
+                </a>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h2>Your Allergens</h2>
+            {% if allergens %}
+                <div class="allergen-list">
+                    {% for allergen in allergens[:5] %}
+                        <div class="allergen-item">
+                            <span class="allergen-name">{{ allergen.ingredient_name }}</span>
+                            <span class="severity-badge severity-{{ allergen.severity }}">
+                                {{ allergen.severity }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if allergens|length > 5 %}
+                    <p class="view-more">
+                        <a href="{{ url_for('manage_allergens') }}">View all {{ allergens|length }} allergens</a>
+                    </p>
+                {% endif %}
+            {% else %}
+                <p class="empty-state">No allergens added yet.</p>
+                <a href="{{ url_for('manage_allergens') }}" class="btn btn-small">Add Allergens</a>
+            {% endif %}
+        </div>
+        
+        <div class="dashboard-card">
+            <h2>🔬 Potential Allergens</h2>
+            {% if potential_allergens %}
+                <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">Based on your product history:</p>
+                <div class="allergen-list">
+                    {% for potential in potential_allergens %}
+                        <div class="allergen-item">
+                            <span class="allergen-name">{{ potential.name }}</span>
+                            <span class="category-badge">{{ potential.count }} products</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                <p class="view-more">
+                    <a href="{{ url_for('potential_allergens_page') }}">View all potential allergens</a>
+                </p>
+            {% else %}
+                <p class="empty-state">Scan more products to detect patterns.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>✅ Safe Products</h2>
+            {% if safe_products %}
+                <div class="product-list">
+                    {% for product in safe_products %}
+                        <div class="product-item">
+                            <div class="product-name">{{ product.product_name }}</div>
+                            <div class="product-date">{{ product.scan_date.strftime('%b %d, %Y') }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">No safe products saved yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="dashboard-card">
+            <h2>⚠️ Allergic Products</h2>
+            {% if allergic_products %}
+                <div class="product-list">
+                    {% for product in allergic_products %}
+                        <div class="product-item">
+                            <div class="product-name">{{ product.product_name }}</div>
+                            <div class="product-date">
+                                {{ product.scan_date.strftime('%b %d, %Y') }}
+                                <span class="severity-badge severity-{{ product.reaction_severity }}">
+                                    {{ product.reaction_severity }}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <p class="view-more">
+                    <a href="{{ url_for('allergic_products') }}">View all allergic products</a>
+                </p>
+            {% else %}
+                <p class="empty-state">No allergic products recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <h3>💡 Tip</h3>
+        <p>The more products you scan and categorize (safe vs allergic), the better the app can identify patterns and suggest potential allergens specific to you!</p>
+    </div>
+</div>
+{% endblock %}

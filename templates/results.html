@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Results - Derme{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <h1>Scan Results</h1>
+    
+    <div class="results-summary">
+        {% set allergen_count = results.analysis.allergens_found|length %}
+        {% set warning_count = results.analysis.warnings|length %}
+        {% set safe_count = results.analysis.safe_ingredients|length %}
+        
+        <div class="summary-card {% if allergen_count > 0 %}alert-danger{% else %}alert-success{% endif %}">
+            {% if allergen_count > 0 %}
+                <h2>⚠️ Warning: Allergens Detected</h2>
+                <p>This product contains {{ allergen_count }} ingredient(s) you're allergic to.</p>
+            {% else %}
+                <h2>✅ Safe to Use</h2>
+                <p>No known allergens detected in this product.</p>
+            {% endif %}
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card stat-danger">
+                <div class="stat-number">{{ allergen_count }}</div>
+                <div class="stat-label">Your Allergens</div>
+            </div>
+            <div class="stat-card stat-warning">
+                <div class="stat-number">{{ warning_count }}</div>
+                <div class="stat-label">Common Allergens</div>
+            </div>
+            <div class="stat-card stat-success">
+                <div class="stat-number">{{ safe_count }}</div>
+                <div class="stat-label">Safe Ingredients</div>
+            </div>
+        </div>
+    </div>
+    
+    {% if results.analysis.allergens_found %}
+    <div class="results-section danger">
+        <h2>⚠️ Your Allergens Found</h2>
+        <div class="ingredient-list">
+            {% for allergen in results.analysis.allergens_found %}
+                <div class="ingredient-item allergen-item">
+                    <span class="ingredient-name">{{ allergen.name }}</span>
+                    <span class="severity-badge severity-{{ allergen.severity }}">
+                        {{ allergen.severity }}
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if results.analysis.warnings %}
+    <div class="results-section warning">
+        <h2>⚡ Common Allergens Detected</h2>
+        <div class="ingredient-list">
+            {% for warning in results.analysis.warnings %}
+                <div class="ingredient-item warning-item">
+                    <div>
+                        <span class="ingredient-name">{{ warning.name }}</span>
+                        <span class="category-badge">{{ warning.category }}</span>
+                    </div>
+                    <p class="ingredient-description">{{ warning.description }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if results.analysis.potential_allergens %}
+    <div class="results-section warning">
+        <h2>🔬 Potential Allergens (Based on Your History)</h2>
+        <p style="margin-bottom: 1rem;">These ingredients appear in products you reacted to but not in products that were safe for you.</p>
+        <div class="ingredient-list">
+            {% for potential in results.analysis.potential_allergens %}
+                <div class="ingredient-item warning-item">
+                    <div>
+                        <span class="ingredient-name">{{ potential.name }}</span>
+                    </div>
+                    <p class="ingredient-description">{{ potential.reason }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if results.analysis.safe_ingredients %}
+    <div class="results-section success">
+        <h2>✅ Safe Ingredients</h2>
+        <div class="ingredient-grid">
+            {% for ingredient in results.analysis.safe_ingredients %}
+                <div class="ingredient-chip">{{ ingredient }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="detected-ingredients">
+        <h3>All Detected Ingredients ({{ results.ingredients|length }})</h3>
+        <div class="ingredient-grid">
+            {% for ingredient in results.ingredients %}
+                <div class="ingredient-chip">{{ ingredient }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="action-buttons">
+        <div class="save-product-section">
+            <form method="POST" action="{{ url_for('save_product') }}" id="saveForm">
+                <input type="text" name="product_name" placeholder="Product name (required)" class="inline-input" required>
+                <input type="hidden" name="product_type" id="productType" value="safe">
+                <input type="hidden" name="reaction_severity" id="reactionSeverity" value="unknown">
+                
+                <div class="save-buttons">
+                    <button type="button" onclick="saveAs('safe')" class="btn btn-success">✅ Save as Safe</button>
+                    <button type="button" onclick="saveAs('allergic')" class="btn btn-danger">⚠️ Save as Allergic</button>
+                </div>
+                
+                <div id="severitySelector" style="display: none; margin-top: 1rem;">
+                    <label for="severity">Reaction Severity:</label>
+                    <select id="severity" onchange="document.getElementById('reactionSeverity').value = this.value">
+                        <option value="unknown">Unknown</option>
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                    </select>
+                    <button type="submit" class="btn btn-danger">Confirm Save as Allergic</button>
+                </div>
+            </form>
+        </div>
+        <a href="{{ url_for('scan') }}" class="btn btn-secondary">Scan Another Product</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+    
+    <script>
+    function saveAs(type) {
+        document.getElementById('productType').value = type;
+        if (type === 'safe') {
+            document.getElementById('severitySelector').style.display = 'none';
+            document.getElementById('saveForm').submit();
+        } else {
+            document.getElementById('severitySelector').style.display = 'block';
+        }
+    }
+    </script>
+</div>
+{% endblock %}

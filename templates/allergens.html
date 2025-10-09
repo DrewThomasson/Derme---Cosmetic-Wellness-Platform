@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}My Allergens - Derme{% endblock %}
+
+{% block content %}
+<div class="allergens-page">
+    <h1>Manage Your Allergens</h1>
+    
+    <div class="allergens-container">
+        <div class="add-allergen-card">
+            <h2>Add New Allergen</h2>
+            <form method="POST" action="{{ url_for('manage_allergens') }}">
+                <div class="form-group">
+                    <label for="ingredient_name">Ingredient Name</label>
+                    <input type="text" id="ingredient_name" name="ingredient_name" required 
+                           placeholder="e.g., Fragrance, Parabens, etc.">
+                </div>
+                
+                <div class="form-group">
+                    <label for="severity">Severity</label>
+                    <select id="severity" name="severity">
+                        <option value="unknown">Unknown</option>
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Add Allergen</button>
+            </form>
+        </div>
+        
+        <div class="allergen-list-card">
+            <h2>Your Allergen List</h2>
+            {% if allergens %}
+                <div class="allergen-table">
+                    {% for allergen in allergens %}
+                        <div class="allergen-row">
+                            <div class="allergen-info">
+                                <span class="allergen-name">{{ allergen.ingredient_name }}</span>
+                                <span class="severity-badge severity-{{ allergen.severity }}">
+                                    {{ allergen.severity }}
+                                </span>
+                            </div>
+                            <form method="POST" action="{{ url_for('delete_allergen', allergen_id=allergen.id) }}" 
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Are you sure you want to remove this allergen?');">
+                                <button type="submit" class="btn btn-danger btn-small">Remove</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">
+                    You haven't added any allergens yet. Add ingredients you're allergic to so we can warn you when scanning products.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
