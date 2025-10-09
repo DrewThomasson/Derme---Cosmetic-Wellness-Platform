@@ -15,6 +15,12 @@ Software Engineering Project
 </a>
 
 ---
+> [!IMPORTANT]
+> **For Informational Use Only. Not Medical Advice.**
+> 
+> This application is not a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified health provider with any questions regarding a medical condition. The developers assume no liability for the use of this software.
+> 
+> **In case of an emergency, call 911 immediately.**
 
 ## Table of Contents
 - [Project Overview](#project-overview)
