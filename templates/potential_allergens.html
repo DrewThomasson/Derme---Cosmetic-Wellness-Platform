@@ -12,16 +12,42 @@
             {% if potential_allergens %}
                 <div class="allergen-table">
                     {% for potential in potential_allergens %}
-                        <div class="allergen-row">
+                        <div class="allergen-row" id="allergen-{{ loop.index }}">
                             <div class="allergen-info">
-                                <span class="allergen-name">{{ potential.name }}</span>
-                                <span class="category-badge">Found in {{ potential.count }} allergic product(s)</span>
+                                <span class="allergen-name" id="name-{{ loop.index }}">{{ potential.name }}</span>
+                                <a href="{{ url_for('view_ingredient_products', ingredient_name=potential.name) }}" 
+                                   class="category-badge clickable">
+                                    Found in {{ potential.count }} allergic product(s)
+                                </a>
+                                
+                                <!-- Edit form (hidden by default) -->
+                                <div id="edit-form-{{ loop.index }}" style="display: none; margin-top: 0.5rem;">
+                                    <form method="POST" action="{{ url_for('edit_potential_allergen', ingredient_name=potential.name) }}" style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                        <input type="text" name="new_name" value="{{ potential.name }}" 
+                                               class="inline-input" style="max-width: 300px;" required>
+                                        <button type="submit" class="btn btn-primary btn-small">Save</button>
+                                        <button type="button" onclick="toggleEdit({{ loop.index }})" class="btn btn-secondary btn-small">Cancel</button>
+                                    </form>
+                                </div>
                             </div>
-                            <form method="POST" action="{{ url_for('manage_allergens') }}" style="display: inline;">
-                                <input type="hidden" name="ingredient_name" value="{{ potential.name }}">
-                                <input type="hidden" name="severity" value="unknown">
-                                <button type="submit" class="btn btn-primary btn-small">Add to My Allergens</button>
-                            </form>
+                            
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="toggleEdit({{ loop.index }})" class="btn btn-secondary btn-small" id="edit-btn-{{ loop.index }}">
+                                    ✏️ Edit
+                                </button>
+                                
+                                <form method="POST" action="{{ url_for('remove_potential_allergen', ingredient_name=potential.name) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Remove this ingredient from all your allergic products? This will also remove it from the potential allergens list.');">
+                                    <button type="submit" class="btn btn-danger btn-small">🗑️ Remove</button>
+                                </form>
+                                
+                                <form method="POST" action="{{ url_for('manage_allergens') }}" style="display: inline;">
+                                    <input type="hidden" name="ingredient_name" value="{{ potential.name }}">
+                                    <input type="hidden" name="severity" value="unknown">
+                                    <button type="submit" class="btn btn-primary btn-small">Add to My Allergens</button>
+                                </form>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
@@ -42,6 +68,7 @@
     <div class="info-card">
         <h3>💡 How It Works</h3>
         <p>This analysis compares ingredients across all your scanned products. Ingredients that appear frequently in products you reacted to, but never in safe products, are flagged as potential allergens worth investigating further.</p>
+        <p style="margin-top: 0.5rem;"><strong>Pro Tip:</strong> Click on "Found in X products" to see which specific products contain each ingredient. Use the Edit button to correct any OCR reading errors.</p>
     </div>
     
     <div class="action-buttons" style="margin-top: 2rem;">
@@ -49,4 +76,22 @@
         <a href="{{ url_for('scan') }}" class="btn btn-primary">Scan Another Product</a>
     </div>
 </div>
+
+<script>
+function toggleEdit(index) {
+    const editForm = document.getElementById('edit-form-' + index);
+    const nameSpan = document.getElementById('name-' + index);
+    const editBtn = document.getElementById('edit-btn-' + index);
+    
+    if (editForm.style.display === 'none') {
+        editForm.style.display = 'block';
+        nameSpan.style.display = 'none';
+        editBtn.style.display = 'none';
+    } else {
+        editForm.style.display = 'none';
+        nameSpan.style.display = 'inline';
+        editBtn.style.display = 'inline-block';
+    }
+}
+</script>
 {% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ingredient_name }} - Products - Derme{% endblock %}
+
+{% block content %}
+<div class="allergens-page">
+    <h1>🔍 Products Containing "{{ ingredient_name }}"</h1>
+    <p class="subtitle">Allergic products that contain this ingredient</p>
+    
+    <div class="allergens-container">
+        <div class="allergen-list-card">
+            <h2>Found in {{ products|length }} Product(s)</h2>
+            {% if products %}
+                <div class="allergen-table">
+                    {% for product in products %}
+                        <div class="product-detail-card">
+                            <div class="product-header">
+                                <h3>{{ product.product_name }}</h3>
+                                <span class="severity-badge severity-{{ product.reaction_severity }}">
+                                    {{ product.reaction_severity }} reaction
+                                </span>
+                            </div>
+                            
+                            <div class="product-meta">
+                                <span>📅 Scanned: {{ product.scan_date.strftime('%B %d, %Y') }}</span>
+                            </div>
+                            
+                            <div class="product-ingredients">
+                                <strong>All Ingredients:</strong>
+                                <div class="ingredients-list">
+                                    {% set ingredient_list = product.ingredients.split(',') %}
+                                    {% for ing in ingredient_list %}
+                                        {% set trimmed_ing = ing.strip() %}
+                                        {% if trimmed_ing.lower() == ingredient_name.lower() %}
+                                            <span class="ingredient-chip highlighted">{{ trimmed_ing }}</span>
+                                        {% else %}
+                                            <span class="ingredient-chip">{{ trimmed_ing }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">
+                    No products found containing this ingredient.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="action-buttons" style="margin-top: 2rem;">
+        <a href="{{ url_for('potential_allergens_page') }}" class="btn btn-secondary">Back to Potential Allergens</a>
+        <a href="{{ url_for('allergic_products') }}" class="btn btn-secondary">View All Allergic Products</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+.product-detail-card {
+    background: var(--light-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--danger-color);
+}
+
+.product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.product-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.product-meta {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.product-ingredients {
+    margin-top: 1rem;
+}
+
+.ingredients-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.ingredient-chip.highlighted {
+    background-color: #fff3cd;
+    border: 2px solid var(--warning-color);
+    font-weight: bold;
+}
+</style>
+{% endblock %}
