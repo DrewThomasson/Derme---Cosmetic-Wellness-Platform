@@ -20,10 +20,14 @@
                     <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('scan') }}">Scan Product</a></li>
                     <li><a href="{{ url_for('manage_allergens') }}">My Allergens</a></li>
-                    <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                    {% if not running_on_huggingface %}
+                        <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                    {% endif %}
                 {% else %}
-                    <li><a href="{{ url_for('login') }}">Login</a></li>
-                    <li><a href="{{ url_for('register') }}">Register</a></li>
+                    {% if not running_on_huggingface %}
+                        <li><a href="{{ url_for('login') }}">Login</a></li>
+                        <li><a href="{{ url_for('register') }}">Register</a></li>
+                    {% endif %}
                 {% endif %}
             </ul>
         </div>
