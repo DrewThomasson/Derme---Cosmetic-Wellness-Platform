@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Product - Derme{% endblock %}
+
+{% block content %}
+<div class="scan-page">
+    <h1>Scan Product Ingredients</h1>
+    <p class="subtitle">Upload a photo of the ingredient list on your cosmetic product</p>
+    
+    <div class="scan-container">
+        <div class="scan-card">
+            <form method="POST" action="{{ url_for('scan') }}" enctype="multipart/form-data">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📸</div>
+                    <p>Click to upload or drag and drop</p>
+                    <p class="upload-hint">Supported formats: JPG, PNG, JPEG</p>
+                    <input type="file" id="image" name="image" accept="image/*" required>
+                </div>
+                
+                <div id="imagePreview" class="image-preview" style="display: none;">
+                    <img id="previewImg" src="" alt="Preview">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">Analyze Ingredients</button>
+            </form>
+        </div>
+        
+        <div class="tips-card">
+            <h3>📋 Scanning Tips</h3>
+            <ul class="tips-list">
+                <li>Ensure good lighting - avoid shadows and glare</li>
+                <li>Keep the camera steady and focused</li>
+                <li>Make sure all text is clearly visible</li>
+                <li>Capture the entire ingredient list</li>
+                <li>Use a flat surface for best results</li>
+            </ul>
+        </div>
+    </div>
+    
+    {% if ocr_text %}
+    <div class="ocr-result">
+        <h3>Detected Text:</h3>
+        <div class="ocr-text">
+            {{ ocr_text }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+const imageInput = document.getElementById('image');
+const uploadArea = document.getElementById('uploadArea');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+
+imageInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+            uploadArea.style.display = 'none';
+        }
+        reader.readAsDataURL(file);
+    }
+});
+
+uploadArea.addEventListener('click', function() {
+    imageInput.click();
+});
+
+uploadArea.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', function() {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        imageInput.files = e.dataTransfer.files;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+            uploadArea.style.display = 'none';
+        }
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}

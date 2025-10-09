@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1>Welcome to Derme</h1>
+        <p class="hero-subtitle">Your Personal Cosmetic Ingredient Analyzer</p>
+        <p class="hero-description">
+            Scan cosmetic products, identify allergens, and make safer choices for your skin care routine.
+        </p>
+        
+        <div class="hero-features">
+            <div class="feature">
+                <div class="feature-icon">📸</div>
+                <h3>Scan Products</h3>
+                <p>Upload images of ingredient labels</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔍</div>
+                <h3>Analyze Ingredients</h3>
+                <p>Cross-reference against allergen databases</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✅</div>
+                <h3>Track Products</h3>
+                <p>Keep a log of safe products</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🛡️</div>
+                <h3>Stay Safe</h3>
+                <p>Get personalized allergen alerts</p>
+            </div>
+        </div>
+
+        <div class="cta-buttons">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('scan') }}" class="btn btn-primary">Start Scanning</a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Go to Dashboard</a>
+            {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="info-section">
+    <h2>How It Works</h2>
+    <div class="steps">
+        <div class="step">
+            <span class="step-number">1</span>
+            <h3>Create Account</h3>
+            <p>Sign up and add your known allergens</p>
+        </div>
+        <div class="step">
+            <span class="step-number">2</span>
+            <h3>Scan Label</h3>
+            <p>Upload a photo of the ingredient list</p>
+        </div>
+        <div class="step">
+            <span class="step-number">3</span>
+            <h3>Get Results</h3>
+            <p>See which ingredients are safe or problematic</p>
+        </div>
+        <div class="step">
+            <span class="step-number">4</span>
+            <h3>Track Products</h3>
+            <p>Save safe products for future reference</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
