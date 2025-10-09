@@ -219,7 +219,7 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            login_user(user)
+            login_user(user, remember=True)
             next_page = request.args.get('next')
             return redirect(next_page if next_page else url_for('dashboard'))
         else:
