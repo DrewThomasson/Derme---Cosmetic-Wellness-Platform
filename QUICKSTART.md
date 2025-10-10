@@ -1,6 +1,35 @@
 # Quick Start Guide
 
-## 🚀 Running Locally (Quick Method)
+## 🐳 Docker (Fastest & Easiest)
+
+**Recommended for most users:**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/DrewThomasson/Derme---Cosmetic-Wellness-Platform.git
+cd Derme---Cosmetic-Wellness-Platform
+
+# 2. Start with Docker
+docker compose up -d
+
+# 3. Open your browser at: http://localhost:7860
+# 4. Click "Try Demo" for instant access
+```
+
+**With AI features:**
+```bash
+# Add your Gemini API key
+echo "GEMINI_API_KEY=your-key-here" > .env
+
+# Restart
+docker compose restart
+```
+
+**See [DOCKER_README.md](DOCKER_README.md) for complete Docker documentation.**
+
+---
+
+## 🚀 Running Locally (Manual Setup)
 
 ### Option 1: Without AI Features (Fastest)
 

@@ -1,0 +1,36 @@
+services:
+  derme-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: derme-cosmetic-wellness
+    ports:
+      - "7860:7860"
+    volumes:
+      # Mount local directories for persistent data
+      - ./instance:/app/instance
+      - ./static/uploads:/app/static/uploads
+    environment:
+      # Flask configuration
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:///instance/derme.db
+      
+      # Google Gemini API configuration (optional)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      
+      # Feature flags
+      - USE_GEMINI_FOR_OCR=${USE_GEMINI_FOR_OCR:-true}
+      - USE_GEMINI_FOR_ALLERGEN_INFO=${USE_GEMINI_FOR_ALLERGEN_INFO:-true}
+      - FALLBACK_TO_TESSERACT=${FALLBACK_TO_TESSERACT:-true}
+      
+      # Analysis settings
+      - CONFIDENCE_THRESHOLD=${CONFIDENCE_THRESHOLD:-0.6}
+      - MAX_ALLERGEN_SYNONYMS=${MAX_ALLERGEN_SYNONYMS:-10}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

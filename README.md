@@ -77,13 +77,33 @@ The app works perfectly without a Gemini API key - it falls back to traditional 
 
 ## Installation
 
-### Prerequisites
+### Quick Start with Docker (Recommended)
+
+The easiest way to run Derme is using Docker:
+
+```bash
+# Clone the repository
+git clone https://github.com/DrewThomasson/Derme---Cosmetic-Wellness-Platform.git
+cd Derme---Cosmetic-Wellness-Platform
+
+# Start with Docker Compose
+docker compose up -d
+
+# Access at http://localhost:7860
+```
+
+**See [DOCKER_README.md](DOCKER_README.md) for complete Docker setup and configuration.**
+
+### Manual Installation
+
+#### Prerequisites
 
 * Miniconda or Anaconda installed on your system
 * Python 3.8 or higher
 * Git
+* Tesseract OCR (for image text extraction)
 
-### Setup Steps
+#### Setup Steps
 
 **Clone the repository:**
 ```bash
