@@ -51,11 +51,27 @@ The process of tracking ingredients, cross-referencing them with known allergens
 ## Core System Goals
 
 Our goal is to build a system that can:
-* **Scan Products:** Allow users to scan product barcodes or upload images of ingredient labels.
-* **Analyze Ingredients:** Cross-reference ingredients against a known allergen database and a user's personal allergy list.
+* **Scan Products:** Allow users to scan product barcodes or upload images of ingredient labels with AI-powered OCR.
+* **Analyze Ingredients:** Cross-reference ingredients against a known allergen database and a user's personal allergy list using Google Gemini AI.
+* **Smart Allergen Detection:** Identify allergens by their alternative names and synonyms using AI.
 * **Track Symptoms:** Provide a journal for users to log skin reactions and connect them to specific products.
 * **Provide Alerts:** Notify users about potential flare-ups based on environmental data (pollen, air quality).
 * **Offer Emergency Support:** Integrate features to contact emergency services and share allergy information.
+
+---
+
+## 🚀 New: AI-Powered Analysis with Google Gemini
+
+The application now integrates **Google Gemini AI** for enhanced allergen detection:
+
+- **🔍 Smart OCR**: Better ingredient extraction from product photos
+- **🧠 Intelligent Analysis**: Identifies allergens by alternative names and synonyms
+- **📚 Detailed Information**: Get comprehensive details about any ingredient
+- **⚡ Real-time Insights**: AI-powered explanations for detected allergens
+
+**See [CONFIG_README.md](CONFIG_README.md) for setup instructions.**
+
+The app works perfectly without a Gemini API key - it falls back to traditional OCR and database lookup.
 
 ---
 
@@ -85,6 +101,19 @@ conda activate derme
 ```bash
 pip install -r requirements.txt
 ```
+
+**Configure the application (optional):**
+
+For AI-powered features, set up Google Gemini:
+```bash
+# Copy the example configuration
+cp .env.example .env
+
+# Edit .env and add your Gemini API key
+# Get your key from: https://makersuite.google.com/app/apikey
+```
+
+See [CONFIG_README.md](CONFIG_README.md) for detailed configuration options.
 
 **Run the application:**
 ```bash
