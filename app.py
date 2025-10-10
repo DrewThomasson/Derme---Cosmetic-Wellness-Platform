@@ -8,20 +8,24 @@ import pytesseract
 from PIL import Image
 import io
 import re
+from config import Config
+from gemini_helper import GeminiHelper
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///derme.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config.from_object(Config)
 
 # Detect if running on HuggingFace Spaces
-RUNNING_ON_HUGGINGFACE = os.environ.get('SPACE_ID') is not None
+RUNNING_ON_HUGGINGFACE = Config.RUNNING_ON_HUGGINGFACE
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize Gemini Helper
+gemini_helper = GeminiHelper(
+    api_key=Config.GEMINI_API_KEY,
+    model_name=Config.GEMINI_MODEL
+)
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -90,6 +94,18 @@ def normalize_ingredient(ingredient):
 def find_ingredient_synonyms(ingredient):
     """Find all synonyms for an ingredient"""
     normalized = normalize_ingredient(ingredient)
+    
+    # Try to get synonyms from Gemini first if available
+    if Config.USE_GEMINI_FOR_ALLERGEN_INFO and gemini_helper.is_available():
+        try:
+            gemini_synonyms = gemini_helper.find_ingredient_synonyms(ingredient)
+            # Normalize all synonyms
+            all_names = set([normalize_ingredient(syn) for syn in gemini_synonyms])
+            return list(all_names)
+        except Exception as e:
+            print(f"Error getting Gemini synonyms, falling back to database: {e}")
+    
+    # Fallback to database synonyms
     synonyms = IngredientSynonym.query.filter(
         (db.func.lower(IngredientSynonym.primary_name) == normalized) |
         (db.func.lower(IngredientSynonym.synonym) == normalized)
@@ -185,9 +201,68 @@ def analyze_ingredients(ingredients_list, user_id):
         'safe_ingredients': [],
         'unknown_ingredients': [],
         'warnings': [],
-        'potential_allergens': []
+        'potential_allergens': [],
+        'gemini_insights': []  # New field for Gemini-powered insights
     }
     
+    # Try to use Gemini for comprehensive analysis if available
+    if Config.USE_GEMINI_FOR_ALLERGEN_INFO and gemini_helper.is_available():
+        try:
+            user_allergen_list = [a.ingredient_name for a in user_allergens]
+            gemini_analysis = gemini_helper.analyze_ingredient_list(ingredients_list, user_allergen_list)
+            
+            # Process Gemini analysis results
+            if gemini_analysis:
+                # Add user allergens found by Gemini
+                for allergen_match in gemini_analysis.get('user_allergens_found', []):
+                    # Find severity from user's allergen list
+                    severity = 'unknown'
+                    for ua in user_allergens:
+                        if normalize_ingredient(ua.ingredient_name) == normalize_ingredient(allergen_match.get('matches_allergen', '')):
+                            severity = ua.severity
+                            break
+                    
+                    results['allergens_found'].append({
+                        'name': allergen_match.get('ingredient', ''),
+                        'severity': severity,
+                        'gemini_explanation': allergen_match.get('explanation', '')
+                    })
+                
+                # Add common allergens identified by Gemini
+                for common_allergen in gemini_analysis.get('common_allergens', []):
+                    results['warnings'].append({
+                        'name': common_allergen.get('ingredient', ''),
+                        'category': common_allergen.get('category', 'Unknown'),
+                        'description': common_allergen.get('description', '')
+                    })
+                
+                # Store Gemini insights
+                results['gemini_insights'] = gemini_analysis
+                
+                # Mark remaining as safe
+                identified_ingredients = set()
+                for a in results['allergens_found']:
+                    identified_ingredients.add(normalize_ingredient(a['name']))
+                for w in results['warnings']:
+                    identified_ingredients.add(normalize_ingredient(w['name']))
+                
+                for ing in ingredients_list:
+                    if normalize_ingredient(ing) not in identified_ingredients:
+                        results['safe_ingredients'].append(ing)
+                
+                # Get potential allergens from cross-referencing
+                potential_allergens = detect_potential_allergens(user_id)
+                for potential in potential_allergens[:5]:  # Limit to top 5
+                    results['potential_allergens'].append({
+                        'name': potential['name'],
+                        'reason': f'Found in {potential["count"]} allergic products but not in safe products'
+                    })
+                
+                return results
+        except Exception as e:
+            print(f"Error using Gemini for analysis, falling back to traditional method: {e}")
+    
+    # Fallback to traditional analysis
     # Get potential allergens from cross-referencing
     potential_allergens = detect_potential_allergens(user_id)
     potential_allergen_names = set([p['name'].lower() for p in potential_allergens])
@@ -455,15 +530,36 @@ def scan():
                 # Read image
                 image = Image.open(file.stream)
                 
-                # Perform OCR
-                text = pytesseract.image_to_string(image)
+                # Try Gemini first if enabled and available
+                text = ""
+                ingredients = []
+                ocr_method = "tesseract"  # Default
                 
-                # Parse ingredients
-                ingredients = parse_ingredients(text)
+                if Config.USE_GEMINI_FOR_OCR and gemini_helper.is_available():
+                    try:
+                        text, ingredients = gemini_helper.extract_ingredients_from_image(image)
+                        if ingredients:
+                            ocr_method = "gemini"
+                        elif Config.FALLBACK_TO_TESSERACT:
+                            # Fallback to Tesseract if Gemini didn't find ingredients
+                            text = pytesseract.image_to_string(image)
+                            ingredients = parse_ingredients(text)
+                            ocr_method = "tesseract (fallback)"
+                    except Exception as e:
+                        print(f"Gemini OCR error: {e}")
+                        if Config.FALLBACK_TO_TESSERACT:
+                            # Fallback to Tesseract on error
+                            text = pytesseract.image_to_string(image)
+                            ingredients = parse_ingredients(text)
+                            ocr_method = "tesseract (fallback)"
+                else:
+                    # Use Tesseract OCR
+                    text = pytesseract.image_to_string(image)
+                    ingredients = parse_ingredients(text)
                 
                 if not ingredients:
                     flash('No ingredients detected. Please try a clearer image.', 'warning')
-                    return render_template('scan.html', ocr_text=text)
+                    return render_template('scan.html', ocr_text=text, ocr_method=ocr_method)
                 
                 # Analyze ingredients
                 analysis = analyze_ingredients(ingredients, current_user.id)
@@ -472,7 +568,8 @@ def scan():
                 session['scan_results'] = {
                     'ocr_text': text,
                     'ingredients': ingredients,
-                    'analysis': analysis
+                    'analysis': analysis,
+                    'ocr_method': ocr_method
                 }
                 
                 return redirect(url_for('scan_results'))
@@ -493,6 +590,47 @@ def scan_results():
         return redirect(url_for('scan'))
     
     return render_template('results.html', results=results)
+
+@app.route('/api/allergen-info/<ingredient_name>')
+@login_required
+def get_allergen_info(ingredient_name):
+    """API endpoint to get detailed allergen information using Gemini"""
+    if Config.USE_GEMINI_FOR_ALLERGEN_INFO and gemini_helper.is_available():
+        try:
+            info = gemini_helper.get_allergen_information(ingredient_name)
+            return jsonify({
+                'success': True,
+                'info': info,
+                'source': 'gemini'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'source': 'gemini'
+            }), 500
+    else:
+        # Fallback to database lookup
+        known = KnownAllergen.query.filter(
+            db.func.lower(KnownAllergen.name) == ingredient_name.lower()
+        ).first()
+        
+        if known:
+            return jsonify({
+                'success': True,
+                'info': {
+                    'ingredient': known.name,
+                    'category': known.category,
+                    'description': known.description
+                },
+                'source': 'database'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No information available',
+                'source': 'database'
+            }), 404
 
 @app.route('/scan/save', methods=['POST'])
 @login_required

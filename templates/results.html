@@ -43,10 +43,18 @@
         <div class="ingredient-list">
             {% for allergen in results.analysis.allergens_found %}
                 <div class="ingredient-item allergen-item">
-                    <span class="ingredient-name">{{ allergen.name }}</span>
-                    <span class="severity-badge severity-{{ allergen.severity }}">
-                        {{ allergen.severity }}
-                    </span>
+                    <div>
+                        <span class="ingredient-name">{{ allergen.name }}</span>
+                        <span class="severity-badge severity-{{ allergen.severity }}">
+                            {{ allergen.severity }}
+                        </span>
+                        <button class="info-btn" onclick="getAllergenInfo('{{ allergen.name }}')">ℹ️ More Info</button>
+                    </div>
+                    {% if allergen.gemini_explanation %}
+                    <p class="ingredient-description gemini-insight">
+                        <strong>AI Insight:</strong> {{ allergen.gemini_explanation }}
+                    </p>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -135,6 +143,23 @@
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
     </div>
     
+    {% if results.ocr_method %}
+    <div class="ocr-info">
+        <small>Scanned using: {{ results.ocr_method }}</small>
+    </div>
+    {% endif %}
+    
+    <!-- Allergen Info Modal -->
+    <div id="allergenInfoModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeAllergenModal()">&times;</span>
+            <h2 id="modalTitle">Loading...</h2>
+            <div id="modalBody">
+                <div class="loading">Loading allergen information...</div>
+            </div>
+        </div>
+    </div>
+    
     <script>
     function saveAs(type) {
         document.getElementById('productType').value = type;
@@ -143,6 +168,76 @@
             document.getElementById('saveForm').submit();
         } else {
             document.getElementById('severitySelector').style.display = 'block';
+        }
+    }
+    
+    function getAllergenInfo(ingredientName) {
+        const modal = document.getElementById('allergenInfoModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        
+        modal.style.display = 'block';
+        modalTitle.textContent = ingredientName;
+        modalBody.innerHTML = '<div class="loading">Loading allergen information...</div>';
+        
+        fetch(`/api/allergen-info/${encodeURIComponent(ingredientName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.info) {
+                    let html = '<div class="allergen-details">';
+                    
+                    if (data.info.alternative_names && data.info.alternative_names.length > 0) {
+                        html += '<h3>Alternative Names:</h3>';
+                        html += '<div class="ingredient-grid">';
+                        data.info.alternative_names.forEach(name => {
+                            html += `<div class="ingredient-chip">${name}</div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    if (data.info.category) {
+                        html += `<h3>Category:</h3><p>${data.info.category}</p>`;
+                    }
+                    
+                    if (data.info.allergen_potential) {
+                        html += `<h3>Allergen Potential:</h3><p class="allergen-potential allergen-${data.info.allergen_potential}">${data.info.allergen_potential}</p>`;
+                    }
+                    
+                    if (data.info.description) {
+                        html += `<h3>Description:</h3><p>${data.info.description}</p>`;
+                    }
+                    
+                    if (data.info.common_in && data.info.common_in.length > 0) {
+                        html += '<h3>Commonly Found In:</h3><ul>';
+                        data.info.common_in.forEach(product => {
+                            html += `<li>${product}</li>`;
+                        });
+                        html += '</ul>';
+                    }
+                    
+                    html += `<p class="info-source"><em>Information source: ${data.source}</em></p>`;
+                    html += '</div>';
+                    
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = '<p class="error">No additional information available for this ingredient.</p>';
+                }
+            })
+            .catch(error => {
+                modalBody.innerHTML = '<p class="error">Error loading allergen information. Please try again.</p>';
+                console.error('Error:', error);
+            });
+    }
+    
+    function closeAllergenModal() {
+        document.getElementById('allergenInfoModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+        const modal = document.getElementById('allergenInfoModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
         }
     }
     </script>
