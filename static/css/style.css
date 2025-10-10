@@ -837,3 +837,147 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+/* Gemini and Modal Styles */
+.gemini-insight {
+    background-color: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.info-btn {
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+    transition: background-color 0.3s;
+}
+
+.info-btn:hover {
+    background-color: #1976d2;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow: auto;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-content h2 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.modal-content h3 {
+    color: var(--secondary-color);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.allergen-details {
+    margin-top: 1rem;
+}
+
+.allergen-potential {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    display: inline-block;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.allergen-potential.allergen-low {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.allergen-potential.allergen-medium {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.allergen-potential.allergen-high {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.info-source {
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--secondary-color);
+}
+
+.error {
+    color: var(--danger-color);
+    padding: 1rem;
+    background-color: #f8d7da;
+    border-radius: 4px;
+}
+
+.ocr-info {
+    text-align: center;
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #e7f3f8;
+    border-radius: 4px;
+    color: #6c757d;
+}
+
+.ocr-info small {
+    font-size: 0.85rem;
+}
