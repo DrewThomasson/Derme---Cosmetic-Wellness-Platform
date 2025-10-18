@@ -20,6 +20,7 @@
                     <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('scan') }}">Scan Product</a></li>
                     <li><a href="{{ url_for('manage_allergens') }}">My Allergens</a></li>
+                    <li><a href="{{ url_for('health_dashboard') }}">Health</a></li>
                     {% if not running_on_huggingface %}
                         <li><a href="{{ url_for('logout') }}">Logout</a></li>
                     {% endif %}

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Symptom Journal - Derme{% endblock %}
+
+{% block content %}
+<div class="symptoms-page">
+    <h1>📝 Symptom Journal</h1>
+    <p>Track your symptoms and identify patterns over time</p>
+
+    <div class="two-column-layout">
+        <!-- Add Symptom Form -->
+        <div class="form-card">
+            <h2>Log New Symptom</h2>
+            <form method="POST" action="{{ url_for('add_symptom') }}">
+                <div class="form-group">
+                    <label for="date">Date & Time</label>
+                    <input type="datetime-local" name="date" id="date" value="{{ datetime.now().strftime('%Y-%m-%dT%H:%M') }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="symptoms">Symptoms *</label>
+                    <textarea name="symptoms" id="symptoms" rows="4" required placeholder="Describe your symptoms (e.g., redness, itching, swelling, rash)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="severity">Severity *</label>
+                    <select name="severity" id="severity" required>
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="suspected_trigger">Suspected Trigger</label>
+                    <input type="text" name="suspected_trigger" id="suspected_trigger" placeholder="Product or ingredient you suspect">
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Additional Notes</label>
+                    <textarea name="notes" id="notes" rows="3" placeholder="Any other relevant information"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Log Symptom</button>
+            </form>
+
+            <div class="info-box">
+                <h3>💡 Tips for Tracking</h3>
+                <ul>
+                    <li>Log symptoms as soon as they occur</li>
+                    <li>Note which products you used recently</li>
+                    <li>Include severity and duration</li>
+                    <li>Look for patterns over time</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Symptom History List -->
+        <div class="list-card">
+            <h2>Symptom History</h2>
+            {% if symptoms %}
+                <div class="symptoms-list">
+                    {% for symptom in symptoms %}
+                        <div class="symptom-item severity-{{ symptom.severity }}">
+                            <div class="symptom-header">
+                                <div>
+                                    <h3>{{ symptom.date.strftime('%B %d, %Y at %I:%M %p') }}</h3>
+                                    <span class="badge badge-{{ symptom.severity }}">{{ symptom.severity|upper }}</span>
+                                </div>
+                            </div>
+
+                            <div class="symptom-details">
+                                <p><strong>Symptoms:</strong> {{ symptom.symptoms }}</p>
+                                
+                                {% if symptom.suspected_trigger %}
+                                    <p><strong>Suspected Trigger:</strong> {{ symptom.suspected_trigger }}</p>
+                                {% endif %}
+
+                                {% if symptom.notes %}
+                                    <p><strong>Notes:</strong> {{ symptom.notes }}</p>
+                                {% endif %}
+                            </div>
+
+                            <form method="POST" action="{{ url_for('delete_symptom', symptom_id=symptom.id) }}" style="margin-top: 15px;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-message">No symptoms logged yet. Start tracking your symptoms to identify patterns.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.symptoms-page {
+    padding: 20px;
+}
+
+.symptom-item {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid;
+}
+
+.symptom-item.severity-mild {
+    border-left-color: #ffc107;
+}
+
+.symptom-item.severity-moderate {
+    border-left-color: #ff8c00;
+}
+
+.symptom-item.severity-severe {
+    border-left-color: #dc3545;
+}
+
+.symptom-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.symptom-header h3 {
+    margin: 0 0 5px 0;
+    color: #2c5f5f;
+    font-size: 1.1em;
+}
+
+.badge-mild {
+    background: #ffc107;
+    color: #000;
+}
+
+.badge-moderate {
+    background: #ff8c00;
+    color: white;
+}
+
+.badge-severe {
+    background: #dc3545;
+    color: white;
+}
+
+.symptom-details p {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.info-box ul {
+    padding-left: 20px;
+}
+
+.info-box li {
+    margin: 8px 0;
+}
+</style>
+{% endblock %}

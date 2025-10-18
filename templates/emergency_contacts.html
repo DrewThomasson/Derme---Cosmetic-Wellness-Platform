@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Emergency Contacts - Derme{% endblock %}
+
+{% block content %}
+<div class="contacts-page">
+    <h1>📞 Emergency Contacts</h1>
+    <p>Manage your emergency contact information</p>
+
+    <div class="two-column-layout">
+        <!-- Add Contact Form -->
+        <div class="form-card">
+            <h2>Add Emergency Contact</h2>
+            <form method="POST" action="{{ url_for('add_emergency_contact') }}">
+                <div class="form-group">
+                    <label for="name">Name *</label>
+                    <input type="text" name="name" id="name" required placeholder="Contact's full name">
+                </div>
+
+                <div class="form-group">
+                    <label for="relationship">Relationship</label>
+                    <input type="text" name="relationship" id="relationship" placeholder="e.g., Spouse, Parent, Doctor">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number *</label>
+                    <input type="tel" name="phone" id="phone" required placeholder="(555) 123-4567">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" name="email" id="email" placeholder="contact@example.com">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="is_primary">
+                        Mark as primary contact
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Add Contact</button>
+            </form>
+        </div>
+
+        <!-- Contacts List -->
+        <div class="list-card">
+            <h2>Your Emergency Contacts</h2>
+            {% if contacts %}
+                <div class="contacts-list">
+                    {% for contact in contacts %}
+                        <div class="contact-item {% if contact.is_primary %}primary{% endif %}">
+                            {% if contact.is_primary %}
+                                <span class="primary-badge">PRIMARY CONTACT</span>
+                            {% endif %}
+                            <h3>{{ contact.name }}</h3>
+                            
+                            {% if contact.relationship %}
+                                <p><strong>Relationship:</strong> {{ contact.relationship }}</p>
+                            {% endif %}
+                            
+                            <p><strong>Phone:</strong> <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a></p>
+                            
+                            {% if contact.email %}
+                                <p><strong>Email:</strong> <a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>
+                            {% endif %}
+
+                            <form method="POST" action="{{ url_for('delete_emergency_contact', contact_id=contact.id) }}" style="margin-top: 15px;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Remove Contact</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="action-buttons">
+                    <a href="{{ url_for('emergency_card') }}" class="btn btn-primary">View Emergency Card</a>
+                </div>
+            {% else %}
+                <p class="empty-message">No emergency contacts yet. Add at least one contact for your safety.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.contacts-page {
+    padding: 20px;
+}
+
+.contact-item {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2c5f5f;
+}
+
+.contact-item.primary {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+}
+
+.primary-badge {
+    display: inline-block;
+    background: #dc3545;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.contact-item h3 {
+    margin: 10px 0;
+    color: #2c5f5f;
+}
+
+.contact-item p {
+    margin: 8px 0;
+}
+
+.contact-item a {
+    color: #2c5f5f;
+    text-decoration: none;
+}
+
+.contact-item a:hover {
+    text-decoration: underline;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    height: auto;
+    margin: 0;
+}
+
+.action-buttons {
+    margin-top: 20px;
+    text-align: center;
+}
+</style>
+{% endblock %}

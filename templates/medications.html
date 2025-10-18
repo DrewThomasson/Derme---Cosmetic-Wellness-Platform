@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Medications - Derme{% endblock %}
+
+{% block content %}
+<div class="medications-page">
+    <h1>💊 Medication Tracker</h1>
+    <p>Track your medications and dosing schedules</p>
+
+    <div class="two-column-layout">
+        <!-- Add Medication Form -->
+        <div class="form-card">
+            <h2>Add New Medication</h2>
+            <form method="POST" action="{{ url_for('add_medication') }}">
+                <div class="form-group">
+                    <label for="name">Medication Name *</label>
+                    <input type="text" name="name" id="name" required placeholder="e.g., Cetirizine">
+                </div>
+
+                <div class="form-group">
+                    <label for="dosage">Dosage</label>
+                    <input type="text" name="dosage" id="dosage" placeholder="e.g., 10mg">
+                </div>
+
+                <div class="form-group">
+                    <label for="frequency">Frequency</label>
+                    <select name="frequency" id="frequency">
+                        <option value="Daily">Daily</option>
+                        <option value="Twice daily">Twice daily</option>
+                        <option value="As needed">As needed</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="start_date">Start Date *</label>
+                    <input type="date" name="start_date" id="start_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">End Date (if applicable)</label>
+                    <input type="date" name="end_date" id="end_date">
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea name="notes" id="notes" rows="3" placeholder="Additional information"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Add Medication</button>
+            </form>
+        </div>
+
+        <!-- Active Medications List -->
+        <div class="list-card">
+            <h2>Active Medications</h2>
+            {% if active_medications %}
+                <div class="medications-list">
+                    {% for med in active_medications %}
+                        <div class="medication-item active">
+                            <div class="med-header">
+                                <h3>{{ med.name }}</h3>
+                                <span class="badge badge-success">Active</span>
+                            </div>
+                            <p><strong>Dosage:</strong> {{ med.dosage or 'Not specified' }}</p>
+                            <p><strong>Frequency:</strong> {{ med.frequency or 'Not specified' }}</p>
+                            <p><strong>Started:</strong> {{ med.start_date.strftime('%Y-%m-%d') }}</p>
+                            {% if med.end_date %}
+                                <p><strong>Ends:</strong> {{ med.end_date.strftime('%Y-%m-%d') }}</p>
+                            {% endif %}
+                            {% if med.notes %}
+                                <p><strong>Notes:</strong> {{ med.notes }}</p>
+                            {% endif %}
+                            <div class="med-actions">
+                                <form method="POST" action="{{ url_for('toggle_medication', med_id=med.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-secondary">Mark Inactive</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('delete_medication', med_id=med.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-message">No active medications. Add one using the form.</p>
+            {% endif %}
+
+            {% if inactive_medications %}
+                <h2 style="margin-top: 40px;">Inactive Medications</h2>
+                <div class="medications-list">
+                    {% for med in inactive_medications %}
+                        <div class="medication-item inactive">
+                            <div class="med-header">
+                                <h3>{{ med.name }}</h3>
+                                <span class="badge badge-secondary">Inactive</span>
+                            </div>
+                            <p><strong>Dosage:</strong> {{ med.dosage or 'Not specified' }}</p>
+                            <p><strong>Period:</strong> {{ med.start_date.strftime('%Y-%m-%d') }} - {{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'Ongoing' }}</p>
+                            <div class="med-actions">
+                                <form method="POST" action="{{ url_for('toggle_medication', med_id=med.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-secondary">Reactivate</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('delete_medication', med_id=med.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.medications-page {
+    padding: 20px;
+}
+
+.two-column-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.form-card, .list-card {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.medication-item {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2c5f5f;
+}
+
+.medication-item.inactive {
+    opacity: 0.7;
+    border-left-color: #999;
+}
+
+.med-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.med-header h3 {
+    margin: 0;
+    color: #2c5f5f;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: #28a745;
+    color: white;
+}
+
+.badge-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.med-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.empty-message {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+}
+
+@media (max-width: 768px) {
+    .two-column-layout {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
