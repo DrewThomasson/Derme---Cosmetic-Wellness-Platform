@@ -997,19 +997,25 @@ def export_data():
     output.write("Name,Dosage,Frequency,Start Date,End Date,Notes,Active\n")
     medications = Medication.query.filter_by(user_id=current_user.id).all()
     for med in medications:
-        output.write(f'"{med.name}","{med.dosage}","{med.frequency}","{med.start_date}","{med.end_date or ''}","{med.notes or ''}","{med.active}"\n')
+        end_date = med.end_date or ''
+        notes = med.notes or ''
+        output.write(f'"{med.name}","{med.dosage}","{med.frequency}","{med.start_date}","{end_date}","{notes}","{med.active}"\n')
     
     output.write("\n=== SYMPTOM LOGS ===\n")
     output.write("Date,Symptoms,Severity,Suspected Trigger,Notes\n")
     symptoms = SymptomLog.query.filter_by(user_id=current_user.id).order_by(SymptomLog.date.desc()).all()
     for symptom in symptoms:
-        output.write(f'"{symptom.date}","{symptom.symptoms}","{symptom.severity}","{symptom.suspected_trigger or ''}","{symptom.notes or ''}"\n')
+        suspected_trigger = symptom.suspected_trigger or ''
+        symptom_notes = symptom.notes or ''
+        output.write(f'"{symptom.date}","{symptom.symptoms}","{symptom.severity}","{suspected_trigger}","{symptom_notes}"\n')
     
     output.write("\n=== EMERGENCY CONTACTS ===\n")
     output.write("Name,Relationship,Phone,Email,Primary\n")
     contacts = EmergencyContact.query.filter_by(user_id=current_user.id).all()
     for contact in contacts:
-        output.write(f'"{contact.name}","{contact.relationship or ''}","{contact.phone}","{contact.email or ''}","{contact.is_primary}"\n')
+        relationship = contact.relationship or ''
+        email = contact.email or ''
+        output.write(f'"{contact.name}","{relationship}","{contact.phone}","{email}","{contact.is_primary}"\n')
     
     # Create response
     response = Response(output.getvalue(), mimetype='text/csv')
