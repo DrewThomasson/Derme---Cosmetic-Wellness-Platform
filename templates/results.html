@@ -61,9 +61,27 @@
                 <div class="ingredient-item warning-item">
                     <div>
                         <span class="ingredient-name">{{ warning.name }}</span>
-                        <span class="category-badge">{{ warning.category }}</span>
+                        {% if warning.allergen_name and warning.allergen_name != warning.name %}
+                            <span class="category-badge" style="background: #666;">Also known as: {{ warning.allergen_name }}</span>
+                        {% endif %}
+                        {% if warning.category %}
+                            <span class="category-badge">{{ warning.category }}</span>
+                        {% endif %}
                     </div>
-                    <p class="ingredient-description">{{ warning.description }}</p>
+                    {% if warning.where_found %}
+                        <p class="ingredient-description"><strong>Where found:</strong> {{ warning.where_found }}</p>
+                    {% elif warning.description %}
+                        <p class="ingredient-description">{{ warning.description }}</p>
+                    {% endif %}
+                    {% if warning.product_categories and warning.product_categories|length > 0 %}
+                        <p class="ingredient-description"><strong>Product types:</strong> {{ warning.product_categories|join(', ') }}</p>
+                    {% endif %}
+                    {% if warning.clinician_note and warning.clinician_note.strip() %}
+                        <p class="ingredient-description"><strong>Clinical note:</strong> {{ warning.clinician_note }}</p>
+                    {% endif %}
+                    {% if warning.url %}
+                        <p class="ingredient-description"><a href="{{ warning.url }}" target="_blank" rel="noopener noreferrer">More information →</a></p>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
