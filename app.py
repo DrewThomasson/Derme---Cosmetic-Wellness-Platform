@@ -651,7 +651,7 @@ def load_allergens_from_json():
     """Load allergens from the allergens.json file into the database"""
     import json
     
-    json_path = os.path.join(os.path.dirname(__file__), 'allergens.json')
+    json_path = os.path.join(os.path.dirname(__file__), 'data', 'allergens.json')
     
     if not os.path.exists(json_path):
         print(f"Warning: allergens.json not found at {json_path}")
@@ -726,7 +726,7 @@ def init_db():
             load_allergens_from_json()
         else:
             # If database exists but allergens.json has more entries, add new ones
-            json_path = os.path.join(os.path.dirname(__file__), 'allergens.json')
+            json_path = os.path.join(os.path.dirname(__file__), 'data', 'allergens.json')
             if os.path.exists(json_path):
                 load_allergens_from_json()
         
