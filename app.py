@@ -716,10 +716,62 @@ def load_allergens_from_json():
         print(f"Error loading allergens from JSON: {str(e)}")
         db.session.rollback()
 
+def migrate_database():
+    """Migrate existing database schema to add new columns"""
+    try:
+        # Check if we need to migrate by trying to access a new column
+        # This will raise an exception if the column doesn't exist
+        try:
+            KnownAllergen.query.with_entities(KnownAllergen.where_found).first()
+            # If we get here, migration is not needed
+            return
+        except:
+            # Column doesn't exist, need to migrate
+            pass
+        
+        print("Migrating database schema...")
+        
+        # Add new columns to known_allergen table using raw SQL
+        with db.engine.connect() as conn:
+            # Check each column and add if it doesn't exist
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN where_found TEXT"))
+                print("  Added column: where_found")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN product_categories TEXT"))
+                print("  Added column: product_categories")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN clinician_note TEXT"))
+                print("  Added column: clinician_note")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN url VARCHAR(500)"))
+                print("  Added column: url")
+            except:
+                pass
+            
+            conn.commit()
+        
+        print("Database migration completed successfully")
+        
+    except Exception as e:
+        print(f"Migration note: {str(e)}")
+
 # Initialize database
 def init_db():
     with app.app_context():
         db.create_all()
+        
+        # Migrate existing database if needed
+        migrate_database()
         
         # Load allergens from JSON file
         if KnownAllergen.query.count() == 0:
