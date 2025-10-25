@@ -26,15 +26,44 @@ python app.py
    - Click "Register" in the navigation
    - Create your username and password
 
-2. **Add Your Allergens**
+2. **Explore the Allergen Database** (NEW!)
+   - The app includes a comprehensive database of 496 known allergens
+   - Over 14,000 ingredient synonyms for accurate matching
+   - Data sourced from the Contact Dermatitis Institute
+
+3. **Add Your Personal Allergens**
    - Go to "My Allergens"
    - Add ingredients you're allergic to
    - Set severity levels (mild, moderate, severe)
 
-3. **Scan a Product**
+4. **Scan a Product**
    - Go to "Scan Product"
    - Upload a clear photo of the ingredient list
-   - View the analysis results
+   - View the analysis results with detailed allergen information
+
+## What's New: Comprehensive Allergen Database
+
+The app now includes the **Contact Dermatitis Institute Allergen Database**:
+
+- **496 Known Allergens**: Comprehensive list of contact dermatitis allergens
+- **14,000+ Synonyms**: Matches ingredients even when listed under different names
+- **Detailed Information**: Each allergen includes:
+  - Where it's commonly found
+  - Product categories that may contain it
+  - Clinical notes for medical professionals
+  - Links to more detailed information
+
+### Example Detection
+
+When you scan a product, the app will now detect:
+- **Your Personal Allergens**: Ingredients you've marked as causing reactions
+- **Known Database Allergens**: Ingredients known to cause contact dermatitis
+- **Safe Ingredients**: Ingredients with no known allergen issues
+
+The app matches ingredients across all known names. For example:
+- "Parfum" → Matches "Fragrance"
+- "MIT" → Matches "Methylisothiazolinone"
+- "Kathon CG" → Matches preservative allergens
 
 ## Sample Allergens to Test
 

@@ -52,10 +52,27 @@ The process of tracking ingredients, cross-referencing them with known allergens
 
 Our goal is to build a system that can:
 * **Scan Products:** Allow users to scan product barcodes or upload images of ingredient labels.
-* **Analyze Ingredients:** Cross-reference ingredients against a known allergen database and a user's personal allergy list.
+* **Analyze Ingredients:** Cross-reference ingredients against a comprehensive allergen database (496 known contact dermatitis allergens) and a user's personal allergy list.
 * **Track Symptoms:** Provide a journal for users to log skin reactions and connect them to specific products.
 * **Provide Alerts:** Notify users about potential flare-ups based on environmental data (pollen, air quality).
 * **Offer Emergency Support:** Integrate features to contact emergency services and share allergy information.
+
+---
+
+## Features
+
+### Comprehensive Allergen Database
+
+Derme includes a comprehensive database of **496 known allergens** that commonly cause contact dermatitis, sourced from the [Contact Dermatitis Institute](https://www.contactdermatitisinstitute.com). 
+
+The database includes:
+- **14,000+ ingredient synonyms** for accurate matching across different naming conventions
+- Detailed information about where each allergen is commonly found
+- Product categories that may contain the allergen
+- Clinical notes for medical professionals
+- Links to additional information
+
+This enables the app to detect potential allergens in cosmetic products even when they're listed under alternative names, chemical names, or trade names.
 
 ---
 

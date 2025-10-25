@@ -74,6 +74,11 @@ class IngredientSynonym(db.Model):
 class KnownAllergen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), unique=True, nullable=False)
+    where_found = db.Column(db.Text)
+    product_categories = db.Column(db.Text)  # JSON array stored as text
+    clinician_note = db.Column(db.Text)
+    url = db.Column(db.String(500))
+    # Legacy fields for backward compatibility
     category = db.Column(db.String(100))
     description = db.Column(db.Text)
 
@@ -229,10 +234,23 @@ def analyze_ingredients(ingredients_list, user_id):
             ).first()
             
             if known:
+                # Parse product categories from JSON string
+                import json
+                product_categories = []
+                try:
+                    product_categories = json.loads(known.product_categories) if known.product_categories else []
+                except:
+                    product_categories = []
+                
                 results['warnings'].append({
                     'name': ingredient,
+                    'allergen_name': known.name,
                     'category': known.category,
-                    'description': known.description
+                    'description': known.description or known.where_found,
+                    'where_found': known.where_found,
+                    'product_categories': product_categories,
+                    'clinician_note': known.clinician_note,
+                    'url': known.url
                 })
             else:
                 results['safe_ingredients'].append(ingredient)
@@ -629,13 +647,143 @@ def remove_potential_allergen(ingredient_name):
     return redirect(url_for('potential_allergens_page'))
 
 
+def load_allergens_from_json():
+    """Load allergens from the allergens.json file into the database"""
+    import json
+    
+    json_path = os.path.join(os.path.dirname(__file__), 'data', 'allergens.json')
+    
+    if not os.path.exists(json_path):
+        print(f"Warning: allergens.json not found at {json_path}")
+        return
+    
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            allergens_data = json.load(f)
+        
+        print(f"Loading {len(allergens_data)} allergens from Contact Dermatitis Institute database...")
+        
+        loaded_count = 0
+        synonym_count = 0
+        
+        for allergen_data in allergens_data:
+            allergen_name = allergen_data.get('allergen_name', '').strip()
+            
+            if not allergen_name:
+                continue
+            
+            # Check if allergen already exists
+            existing = KnownAllergen.query.filter_by(name=allergen_name).first()
+            
+            if not existing:
+                # Create new allergen entry
+                allergen = KnownAllergen(
+                    name=allergen_name,
+                    where_found=allergen_data.get('where_found', ''),
+                    product_categories=json.dumps(allergen_data.get('product_categories', [])),
+                    clinician_note=allergen_data.get('clinician_note', ''),
+                    url=allergen_data.get('url', ''),
+                    category='Contact Dermatitis Allergen',
+                    description=allergen_data.get('where_found', '')
+                )
+                db.session.add(allergen)
+                loaded_count += 1
+            
+            # Add synonyms from other_names
+            other_names = allergen_data.get('other_names', [])
+            for other_name in other_names:
+                if other_name and other_name.strip():
+                    other_name = other_name.strip()
+                    
+                    # Check if synonym already exists
+                    existing_syn = IngredientSynonym.query.filter(
+                        (db.func.lower(IngredientSynonym.primary_name) == allergen_name.lower()) &
+                        (db.func.lower(IngredientSynonym.synonym) == other_name.lower())
+                    ).first()
+                    
+                    if not existing_syn:
+                        synonym = IngredientSynonym(
+                            primary_name=allergen_name,
+                            synonym=other_name
+                        )
+                        db.session.add(synonym)
+                        synonym_count += 1
+        
+        db.session.commit()
+        print(f"Successfully loaded {loaded_count} new allergens and {synonym_count} synonyms")
+        
+    except Exception as e:
+        print(f"Error loading allergens from JSON: {str(e)}")
+        db.session.rollback()
+
+def migrate_database():
+    """Migrate existing database schema to add new columns"""
+    try:
+        # Check if we need to migrate by trying to access a new column
+        # This will raise an exception if the column doesn't exist
+        try:
+            KnownAllergen.query.with_entities(KnownAllergen.where_found).first()
+            # If we get here, migration is not needed
+            return
+        except:
+            # Column doesn't exist, need to migrate
+            pass
+        
+        print("Migrating database schema...")
+        
+        # Add new columns to known_allergen table using raw SQL
+        with db.engine.connect() as conn:
+            # Check each column and add if it doesn't exist
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN where_found TEXT"))
+                print("  Added column: where_found")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN product_categories TEXT"))
+                print("  Added column: product_categories")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN clinician_note TEXT"))
+                print("  Added column: clinician_note")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN url VARCHAR(500)"))
+                print("  Added column: url")
+            except:
+                pass
+            
+            conn.commit()
+        
+        print("Database migration completed successfully")
+        
+    except Exception as e:
+        print(f"Migration note: {str(e)}")
+
 # Initialize database
 def init_db():
     with app.app_context():
         db.create_all()
         
-        # Add some common ingredient synonyms
-        if IngredientSynonym.query.count() == 0:
+        # Migrate existing database if needed
+        migrate_database()
+        
+        # Load allergens from JSON file
+        if KnownAllergen.query.count() == 0:
+            load_allergens_from_json()
+        else:
+            # If database exists but allergens.json has more entries, add new ones
+            json_path = os.path.join(os.path.dirname(__file__), 'data', 'allergens.json')
+            if os.path.exists(json_path):
+                load_allergens_from_json()
+        
+        # Add some common ingredient synonyms if none exist
+        # Note: allergens.json loading will add many more synonyms automatically
             synonyms = [
                 ('Tocopherol', 'Vitamin E'),
                 ('Retinol', 'Vitamin A'),
@@ -650,25 +798,6 @@ def init_db():
             for primary, synonym in synonyms:
                 syn = IngredientSynonym(primary_name=primary, synonym=synonym)
                 db.session.add(syn)
-            
-            db.session.commit()
-        
-        # Add common known allergens
-        if KnownAllergen.query.count() == 0:
-            allergens = [
-                ('Fragrance', 'Sensitizer', 'Can cause allergic reactions and skin irritation'),
-                ('Parfum', 'Sensitizer', 'Can cause allergic reactions and skin irritation'),
-                ('Formaldehyde', 'Preservative', 'Known allergen and irritant'),
-                ('Methylisothiazolinone', 'Preservative', 'Common cause of allergic contact dermatitis'),
-                ('Methylchloroisothiazolinone', 'Preservative', 'Common cause of allergic contact dermatitis'),
-                ('Paraphenylenediamine', 'Dye', 'Strong allergen found in hair dyes'),
-                ('Lanolin', 'Moisturizer', 'Can cause allergic reactions in sensitive individuals'),
-                ('Propylene Glycol', 'Solvent', 'May cause irritation in some individuals'),
-            ]
-            
-            for name, category, description in allergens:
-                allergen = KnownAllergen(name=name, category=category, description=description)
-                db.session.add(allergen)
             
             db.session.commit()
 
