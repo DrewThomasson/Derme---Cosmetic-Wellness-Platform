@@ -94,7 +94,7 @@ cd Derme---Cosmetic-Wellness-Platform
 
 **Create a conda environment:**
 ```bash
-conda create -n derme python=3.9
+conda create -n derme python=3.10.18
 conda activate derme
 ```
 
