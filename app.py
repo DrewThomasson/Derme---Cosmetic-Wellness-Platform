@@ -36,6 +36,13 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    # Security questions for password recovery
+    security_question_1 = db.Column(db.String(200))
+    security_answer_1_hash = db.Column(db.String(200))
+    security_question_2 = db.Column(db.String(200))
+    security_answer_2_hash = db.Column(db.String(200))
+    security_question_3 = db.Column(db.String(200))
+    security_answer_3_hash = db.Column(db.String(200))
     allergens = db.relationship('UserAllergen', backref='user', lazy=True, cascade='all, delete-orphan')
     safe_products = db.relationship('SafeProduct', backref='user', lazy=True, cascade='all, delete-orphan')
     allergic_products = db.relationship('AllergicProduct', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -45,6 +52,18 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def set_security_answer(self, question_num, answer):
+        """Set a security answer (hashed)"""
+        answer_hash = generate_password_hash(answer.lower().strip())
+        setattr(self, f'security_answer_{question_num}_hash', answer_hash)
+    
+    def check_security_answer(self, question_num, answer):
+        """Check if security answer matches"""
+        answer_hash = getattr(self, f'security_answer_{question_num}_hash')
+        if not answer_hash:
+            return False
+        return check_password_hash(answer_hash, answer.lower().strip())
 
 class UserAllergen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -352,12 +371,25 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         
+        # Get security questions and answers
+        security_question_1 = request.form.get('security_question_1')
+        security_answer_1 = request.form.get('security_answer_1')
+        security_question_2 = request.form.get('security_question_2')
+        security_answer_2 = request.form.get('security_answer_2')
+        security_question_3 = request.form.get('security_question_3')
+        security_answer_3 = request.form.get('security_answer_3')
+        
         if not username or not email or not password:
             flash('All fields are required', 'error')
             return render_template('register.html')
         
         if password != confirm_password:
             flash('Passwords do not match', 'error')
+            return render_template('register.html')
+        
+        # Validate security questions
+        if not security_question_1 or not security_answer_1:
+            flash('Please set up at least one security question', 'error')
             return render_template('register.html')
         
         if User.query.filter_by(username=username).first():
@@ -383,6 +415,18 @@ def register():
         # Create and add new user
         user = User(username=username, email=email)
         user.set_password(password)
+        
+        # Set security questions and answers
+        if security_question_1 and security_answer_1:
+            user.security_question_1 = security_question_1
+            user.set_security_answer(1, security_answer_1)
+        if security_question_2 and security_answer_2:
+            user.security_question_2 = security_question_2
+            user.set_security_answer(2, security_answer_2)
+        if security_question_3 and security_answer_3:
+            user.security_question_3 = security_question_3
+            user.set_security_answer(3, security_answer_3)
+        
         db.session.add(user)
         db.session.commit()
         
@@ -459,6 +503,137 @@ def logout():
     logout_user()
     flash('You have been logged out', 'info')
     return redirect(url_for('index'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """First step: Enter username or email"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        identifier = request.form.get('identifier')  # username or email
+        
+        if not identifier:
+            flash('Please enter your username or email', 'error')
+            return render_template('forgot_password.html')
+        
+        # Find user by username or email
+        user = User.query.filter(
+            (User.username == identifier) | (User.email == identifier)
+        ).first()
+        
+        if not user:
+            flash('No account found with that username or email', 'error')
+            return render_template('forgot_password.html')
+        
+        # Check if user has security questions set up
+        if not user.security_question_1:
+            flash('This account does not have security questions set up. Please contact support.', 'error')
+            return render_template('forgot_password.html')
+        
+        # Store user ID in session for security questions page
+        session['reset_user_id'] = user.id
+        return redirect(url_for('verify_security_questions'))
+    
+    return render_template('forgot_password.html')
+
+@app.route('/verify-security-questions', methods=['GET', 'POST'])
+def verify_security_questions():
+    """Second step: Answer security questions"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    user_id = session.get('reset_user_id')
+    if not user_id:
+        flash('Session expired. Please start over.', 'error')
+        return redirect(url_for('forgot_password'))
+    
+    user = User.query.get(user_id)
+    if not user:
+        flash('User not found', 'error')
+        session.pop('reset_user_id', None)
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        # Get submitted answers
+        answer_1 = request.form.get('answer_1', '')
+        answer_2 = request.form.get('answer_2', '')
+        answer_3 = request.form.get('answer_3', '')
+        
+        # Verify at least the first answer (required)
+        if not user.check_security_answer(1, answer_1):
+            flash('Incorrect answer to security question', 'error')
+            return render_template('verify_security_questions.html', user=user)
+        
+        # Verify second answer if question exists
+        if user.security_question_2 and answer_2:
+            if not user.check_security_answer(2, answer_2):
+                flash('Incorrect answer to security question', 'error')
+                return render_template('verify_security_questions.html', user=user)
+        
+        # Verify third answer if question exists
+        if user.security_question_3 and answer_3:
+            if not user.check_security_answer(3, answer_3):
+                flash('Incorrect answer to security question', 'error')
+                return render_template('verify_security_questions.html', user=user)
+        
+        # All answers correct, proceed to password reset
+        session['verified_user_id'] = user.id
+        session.pop('reset_user_id', None)
+        return redirect(url_for('reset_password'))
+    
+    return render_template('verify_security_questions.html', user=user)
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    """Third step: Set new password"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    user_id = session.get('verified_user_id')
+    if not user_id:
+        flash('Session expired or verification incomplete. Please start over.', 'error')
+        return redirect(url_for('forgot_password'))
+    
+    user = User.query.get(user_id)
+    if not user:
+        flash('User not found', 'error')
+        session.pop('verified_user_id', None)
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not new_password or not confirm_password:
+            flash('Both password fields are required', 'error')
+            return render_template('reset_password.html')
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return render_template('reset_password.html')
+        
+        if new_password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('reset_password.html')
+        
+        # Update password
+        user.set_password(new_password)
+        db.session.commit()
+        
+        # Clear session
+        session.pop('verified_user_id', None)
+        
+        print("\n" + "="*60)
+        print("PASSWORD RESET - SUCCESSFUL")
+        print("="*60)
+        print(f"User {user.username} reset their password at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("="*60 + "\n")
+        
+        flash('Password successfully reset! You can now login with your new password.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html')
 
 @app.route('/dashboard')
 @login_required
