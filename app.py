@@ -8,6 +8,7 @@ import pytesseract
 from PIL import Image
 import io
 import re
+from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -367,10 +368,37 @@ def register():
             flash('Email already registered', 'error')
             return render_template('register.html')
         
+        # Print before state
+        print("\n" + "="*60)
+        print("USER REGISTRATION - BEFORE STATE")
+        print("="*60)
+        user_count_before = User.query.count()
+        print(f"Total users in database: {user_count_before}")
+        if user_count_before > 0:
+            print(f"Existing users registered: {user_count_before} user(s)")
+        else:
+            print("No existing users in database")
+        print("="*60)
+        
+        # Create and add new user
         user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
+        
+        # Print after state and confirmation
+        print("\n" + "="*60)
+        print("USER REGISTRATION - SUCCESSFUL")
+        print("="*60)
+        print(f"New user registered:")
+        print(f"  - ID: {user.id}")
+        print(f"  - Username: {user.username}")
+        print(f"  - Registration time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        user_count_after = User.query.count()
+        print(f"\nTotal users in database: {user_count_after}")
+        print("✓ User successfully added to database")
+        print("="*60 + "\n")
         
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('login'))
@@ -389,10 +417,38 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            # Print login success
+            print("\n" + "="*60)
+            print("USER LOGIN - SUCCESSFUL")
+            print("="*60)
+            print(f"User logged in:")
+            print(f"  - ID: {user.id}")
+            print(f"  - Username: {user.username}")
+            print(f"  - Login time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            # Get user's allergen count
+            allergen_count = UserAllergen.query.filter_by(user_id=user.id).count()
+            safe_product_count = SafeProduct.query.filter_by(user_id=user.id).count()
+            allergic_product_count = AllergicProduct.query.filter_by(user_id=user.id).count()
+            
+            print(f"\nUser profile summary:")
+            print(f"  - Tracked allergens: {allergen_count}")
+            print(f"  - Safe products: {safe_product_count}")
+            print(f"  - Allergic products: {allergic_product_count}")
+            print("="*60 + "\n")
+            
             login_user(user, remember=True)
             next_page = request.args.get('next')
             return redirect(next_page if next_page else url_for('dashboard'))
         else:
+            # Print login failure
+            print("\n" + "="*60)
+            print("USER LOGIN - FAILED")
+            print("="*60)
+            print(f"Failed login attempt at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            if username:
+                print(f"Attempted username: {username[:3]}***")
+            print("="*60 + "\n")
             flash('Invalid username or password', 'error')
     
     return render_template('login.html')
