@@ -8,6 +8,7 @@ import pytesseract
 from PIL import Image
 import io
 import re
+from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -371,12 +372,10 @@ def register():
         print("\n" + "="*60)
         print("USER REGISTRATION - BEFORE STATE")
         print("="*60)
-        all_users_before = User.query.all()
-        print(f"Total users in database: {len(all_users_before)}")
-        if all_users_before:
-            print("\nExisting users:")
-            for u in all_users_before:
-                print(f"  - ID: {u.id}, Username: {u.username}, Email: {u.email}")
+        user_count_before = User.query.count()
+        print(f"Total users in database: {user_count_before}")
+        if user_count_before > 0:
+            print(f"Existing users registered: {user_count_before} user(s)")
         else:
             print("No existing users in database")
         print("="*60)
@@ -394,14 +393,11 @@ def register():
         print(f"New user registered:")
         print(f"  - ID: {user.id}")
         print(f"  - Username: {user.username}")
-        print(f"  - Email: {user.email}")
-        print(f"  - Registration time: {db.func.current_timestamp()}")
+        print(f"  - Registration time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
-        all_users_after = User.query.all()
-        print(f"\nTotal users in database: {len(all_users_after)}")
-        print("\nAll users after registration:")
-        for u in all_users_after:
-            print(f"  - ID: {u.id}, Username: {u.username}, Email: {u.email}")
+        user_count_after = User.query.count()
+        print(f"\nTotal users in database: {user_count_after}")
+        print("✓ User successfully added to database")
         print("="*60 + "\n")
         
         flash('Registration successful! Please log in.', 'success')
@@ -428,7 +424,7 @@ def login():
             print(f"User logged in:")
             print(f"  - ID: {user.id}")
             print(f"  - Username: {user.username}")
-            print(f"  - Email: {user.email}")
+            print(f"  - Login time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Get user's allergen count
             allergen_count = UserAllergen.query.filter_by(user_id=user.id).count()
@@ -449,7 +445,9 @@ def login():
             print("\n" + "="*60)
             print("USER LOGIN - FAILED")
             print("="*60)
-            print(f"Failed login attempt for username: {username}")
+            print(f"Failed login attempt at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            if username:
+                print(f"Attempted username: {username[:3]}***")
             print("="*60 + "\n")
             flash('Invalid username or password', 'error')
     
