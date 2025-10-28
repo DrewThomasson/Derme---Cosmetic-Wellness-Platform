@@ -27,6 +27,15 @@ wheels/
 *.db
 instance/
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+
 # IDE
 .vscode/
 .idea/
