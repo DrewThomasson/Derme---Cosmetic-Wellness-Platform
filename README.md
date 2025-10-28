@@ -44,6 +44,7 @@ Consumers with sensitive skin and allergies face a significant challenge in iden
 
 The process of tracking ingredients, cross-referencing them with known allergens, and correlating them to specific skin reactions is manually intensive and often unreliable. This leaves users feeling frustrated and disempowered, turning the proactive management of their skin health into a constant struggle. Derme aims to solve this by providing a centralized, intelligent platform to simplify ingredient analysis and allergy management.
 
+Our project was founded by our allergy ridden friend Drew. 
 ---
 
 ## Core System Goals
