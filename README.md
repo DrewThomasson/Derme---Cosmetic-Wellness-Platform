@@ -1,9 +1,7 @@
 # Derme - Cosmetic Wellness Platform
 Software Engineering Project
+<img width="1344" height="768" alt="Gemini_Generated_Image_gdr0wpgdr0wpgdr0" src="https://github.com/user-attachments/assets/78ab918e-2068-4ebf-abe2-f5c330cf94ba" />
 
-<p align="center">
-  <img width="770" height="291" alt="Screenshot 2025-10-06 at 8 54 58 PM" src="https://github.com/user-attachments/assets/5bbf9243-58ee-4f15-96b6-def4d5461f4c" />
-</p>
 
 **Course:** Software Engineering Project - Fall 2025  
 **Group:** Super Cool Guys (Group 8)
