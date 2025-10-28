@@ -1,5 +1,5 @@
 # Derme - Cosmetic Wellness Platform
-Software Engineering Project
+
 <img width="1344" height="768" alt="Gemini_Generated_Image_gdr0wpgdr0wpgdr0" src="https://github.com/user-attachments/assets/78ab918e-2068-4ebf-abe2-f5c330cf94ba" />
 
 
@@ -39,12 +39,15 @@ Derme is a mobile application designed to help users with sensitive skin and all
 ---
 
 ## Problem Statement
+One of our team members, Drew Thomasson, frequently experiences skin reactions and has spent considerable time and money consulting multiple dermatologists to identify the causes. This challenge inspired our team to develop a solution that simplifies tracking symptoms and identifying potential skin irritants for individuals facing similar issues.
 
-Consumers with sensitive skin and allergies face a significant challenge in identifying potential irritants within the complex ingredient lists of cosmetic and skincare products. This difficulty creates a barrier for individuals wishing to safely purchase new products and makes it hard to provide accurate information to dermatologists when trying to diagnose the source of an adverse reaction.
+Consumers with sensitive skin or allergies struggle to identify harmful ingredients within the often complex and technical ingredient lists of cosmetic and skincare products. This difficulty not only creates anxiety when purchasing new products but also makes it challenging to provide dermatologists with accurate information for diagnosing adverse skin reactions.
 
-The process of tracking ingredients, cross-referencing them with known allergens, and correlating them to specific skin reactions is manually intensive and often unreliable. This leaves users feeling frustrated and disempowered, turning the proactive management of their skin health into a constant struggle. Derme aims to solve this by providing a centralized, intelligent platform to simplify ingredient analysis and allergy management.
+Currently, tracking ingredients, cross-referencing them with known allergens, and linking them to specific skin symptoms is a tedious and error-prone process. As a result, users often feel frustrated and powerless in managing their skin health.
 
-Our project was founded by our allergy ridden friend Drew. 
+**Derme** aims to address this problem by providing a centralized, intelligent platform that streamlines ingredient analysis, symptom tracking, and allergy management—empowering users to make safer and more informed skincare decisions.
+
+
 ---
 
 ## Core System Goals
@@ -62,7 +65,7 @@ Our goal is to build a system that can:
 
 ### Comprehensive Allergen Database
 
-Derme includes a comprehensive database of **496 known allergens** that commonly cause contact dermatitis, sourced from the [Contact Dermatitis Institute](https://www.contactdermatitisinstitute.com). 
+Derme includes a comprehensive database of **496 known allergens** that commonly cause contact dermatitis, sourced from the **[Contact Dermatitis Institute]**(https://www.contactdermatitisinstitute.com). 
 
 The database includes:
 - **14,000+ ingredient synonyms** for accurate matching across different naming conventions
@@ -121,7 +124,7 @@ Try out our live demo on Hugging Face Spaces:
 
 * Naol Seyum
 * Sansca Raut
-* Amna Yousuf (Coordinator)
-* Trenton Ellis (Coordinator)
+* Amna Yousuf 
+* Trenton Ellis 
 * Brij Chovatiya
 * Drew Thomasson
