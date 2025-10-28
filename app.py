@@ -367,10 +367,42 @@ def register():
             flash('Email already registered', 'error')
             return render_template('register.html')
         
+        # Print before state
+        print("\n" + "="*60)
+        print("USER REGISTRATION - BEFORE STATE")
+        print("="*60)
+        all_users_before = User.query.all()
+        print(f"Total users in database: {len(all_users_before)}")
+        if all_users_before:
+            print("\nExisting users:")
+            for u in all_users_before:
+                print(f"  - ID: {u.id}, Username: {u.username}, Email: {u.email}")
+        else:
+            print("No existing users in database")
+        print("="*60)
+        
+        # Create and add new user
         user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
+        
+        # Print after state and confirmation
+        print("\n" + "="*60)
+        print("USER REGISTRATION - SUCCESSFUL")
+        print("="*60)
+        print(f"New user registered:")
+        print(f"  - ID: {user.id}")
+        print(f"  - Username: {user.username}")
+        print(f"  - Email: {user.email}")
+        print(f"  - Registration time: {db.func.current_timestamp()}")
+        
+        all_users_after = User.query.all()
+        print(f"\nTotal users in database: {len(all_users_after)}")
+        print("\nAll users after registration:")
+        for u in all_users_after:
+            print(f"  - ID: {u.id}, Username: {u.username}, Email: {u.email}")
+        print("="*60 + "\n")
         
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('login'))
@@ -389,10 +421,36 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            # Print login success
+            print("\n" + "="*60)
+            print("USER LOGIN - SUCCESSFUL")
+            print("="*60)
+            print(f"User logged in:")
+            print(f"  - ID: {user.id}")
+            print(f"  - Username: {user.username}")
+            print(f"  - Email: {user.email}")
+            
+            # Get user's allergen count
+            allergen_count = UserAllergen.query.filter_by(user_id=user.id).count()
+            safe_product_count = SafeProduct.query.filter_by(user_id=user.id).count()
+            allergic_product_count = AllergicProduct.query.filter_by(user_id=user.id).count()
+            
+            print(f"\nUser profile summary:")
+            print(f"  - Tracked allergens: {allergen_count}")
+            print(f"  - Safe products: {safe_product_count}")
+            print(f"  - Allergic products: {allergic_product_count}")
+            print("="*60 + "\n")
+            
             login_user(user, remember=True)
             next_page = request.args.get('next')
             return redirect(next_page if next_page else url_for('dashboard'))
         else:
+            # Print login failure
+            print("\n" + "="*60)
+            print("USER LOGIN - FAILED")
+            print("="*60)
+            print(f"Failed login attempt for username: {username}")
+            print("="*60 + "\n")
             flash('Invalid username or password', 'error')
     
     return render_template('login.html')
