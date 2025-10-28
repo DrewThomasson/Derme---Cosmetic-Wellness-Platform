@@ -950,21 +950,11 @@ def load_allergens_from_json():
 def migrate_database():
     """Migrate existing database schema to add new columns"""
     try:
-        # Check if we need to migrate by trying to access a new column
-        # This will raise an exception if the column doesn't exist
-        try:
-            KnownAllergen.query.with_entities(KnownAllergen.where_found).first()
-            # If we get here, migration is not needed
-            return
-        except:
-            # Column doesn't exist, need to migrate
-            pass
-        
-        print("Migrating database schema...")
+        print("Checking for database migrations...")
         
         # Add new columns to known_allergen table using raw SQL
         with db.engine.connect() as conn:
-            # Check each column and add if it doesn't exist
+            # Check each column and add if it doesn't exist for known_allergen table
             try:
                 conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN where_found TEXT"))
                 print("  Added column: where_found")
@@ -986,6 +976,43 @@ def migrate_database():
             try:
                 conn.execute(db.text("ALTER TABLE known_allergen ADD COLUMN url VARCHAR(500)"))
                 print("  Added column: url")
+            except:
+                pass
+            
+            # Add security question columns to user table
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_question_1 VARCHAR(200)"))
+                print("  Added column: security_question_1")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_answer_1_hash VARCHAR(200)"))
+                print("  Added column: security_answer_1_hash")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_question_2 VARCHAR(200)"))
+                print("  Added column: security_question_2")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_answer_2_hash VARCHAR(200)"))
+                print("  Added column: security_answer_2_hash")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_question_3 VARCHAR(200)"))
+                print("  Added column: security_question_3")
+            except:
+                pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE user ADD COLUMN security_answer_3_hash VARCHAR(200)"))
+                print("  Added column: security_answer_3_hash")
             except:
                 pass
             

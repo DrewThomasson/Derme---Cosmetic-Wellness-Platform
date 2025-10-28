@@ -9,24 +9,31 @@ def test_forgot_password_feature():
         # Initialize database
         db.create_all()
         
-        # Create a test user with security questions
-        test_user = User(username='testuser', email='test@example.com')
-        test_user.set_password('testpass123')
+        # Check if test user already exists
+        test_user = User.query.filter_by(email='test@example.com').first()
         
-        # Set security questions
-        test_user.security_question_1 = 'What was the name of your first pet?'
-        test_user.set_security_answer(1, 'Fluffy')
+        if not test_user:
+            # Create a test user with security questions
+            test_user = User(username='testuser', email='test@example.com')
+            test_user.set_password('testpass123')
+            
+            # Set security questions
+            test_user.security_question_1 = 'What was the name of your first pet?'
+            test_user.set_security_answer(1, 'Fluffy')
+            
+            test_user.security_question_2 = 'What city were you born in?'
+            test_user.set_security_answer(2, 'New York')
+            
+            test_user.security_question_3 = 'What is your favorite color?'
+            test_user.set_security_answer(3, 'Blue')
+            
+            db.session.add(test_user)
+            db.session.commit()
+            
+            print("✓ Test user created successfully")
+        else:
+            print("✓ Test user already exists")
         
-        test_user.security_question_2 = 'What city were you born in?'
-        test_user.set_security_answer(2, 'New York')
-        
-        test_user.security_question_3 = 'What is your favorite color?'
-        test_user.set_security_answer(3, 'Blue')
-        
-        db.session.add(test_user)
-        db.session.commit()
-        
-        print("✓ Test user created successfully")
         print(f"  Username: {test_user.username}")
         print(f"  Email: {test_user.email}")
         print(f"  Security Question 1: {test_user.security_question_1}")
