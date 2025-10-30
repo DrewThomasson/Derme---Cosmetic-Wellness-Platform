@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Security Questions - Derme{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Verify Security Questions</h2>
+        <p class="auth-subtitle">Answer your security questions to reset your password</p>
+        
+        <form method="POST" action="{{ url_for('verify_security_questions') }}">
+            {% if user.security_question_1 %}
+            <div class="form-group">
+                <label for="answer_1">{{ user.security_question_1 }} *</label>
+                <input type="text" id="answer_1" name="answer_1" required>
+            </div>
+            {% endif %}
+            
+            {% if user.security_question_2 %}
+            <div class="form-group">
+                <label for="answer_2">{{ user.security_question_2 }}</label>
+                <input type="text" id="answer_2" name="answer_2">
+            </div>
+            {% endif %}
+            
+            {% if user.security_question_3 %}
+            <div class="form-group">
+                <label for="answer_3">{{ user.security_question_3 }}</label>
+                <input type="text" id="answer_3" name="answer_3">
+            </div>
+            {% endif %}
+            
+            <button type="submit" class="btn btn-primary btn-block">Verify Answers</button>
+        </form>
+        
+        <p class="auth-footer">
+            <a href="{{ url_for('forgot_password') }}">Start Over</a> | 
+            <a href="{{ url_for('login') }}">Back to Login</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
