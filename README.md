@@ -8,6 +8,8 @@
 
 [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Demo-yellow?style=flat&logo=huggingface)](https://huggingface.co/spaces/drewThomasson/DermTest)
 [![Free Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1TjPwaykftmQ6XpG7HKbmKlZyYlb65nLI?usp=sharing)
+[![Tests](https://img.shields.io/badge/tests-53%2B%20passing-success)](./tests/)
+[![Coverage](https://img.shields.io/badge/coverage-check%20reports-blue)](./TESTING_SUMMARY.md)
 <a href="https://github.com/DrewThomasson/Derme---Cosmetic-Wellness-Platform">
   <img src="https://img.shields.io/badge/Platform-mac%20|%20linux%20|%20windows-lightgrey" alt="Platform">
 </a>
@@ -109,6 +111,36 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
+
+---
+
+## Testing
+
+The project includes a comprehensive test suite with 53+ automated tests covering all major functionality.
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with coverage report
+pytest tests/ --cov=app --cov-report=html
+
+# Run specific use case tests
+pytest tests/test_registration.py
+```
+
+### Test Documentation
+
+- **TEST_CASES.md** - Detailed test case specifications
+- **TESTING_SUMMARY.md** - Complete testing implementation summary
+- **TESTING_QUICK_REFERENCE.md** - Quick reference guide
+- **tests/README.md** - Test suite documentation
+
+### Continuous Integration
+
+Tests run automatically via GitHub Actions on every push and pull request. View workflow status in the Actions tab.
 
 ---
 
