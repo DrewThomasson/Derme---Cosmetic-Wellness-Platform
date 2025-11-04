@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}EpiPen Management - Derme{% endblock %}
+
+{% block content %}
+<div class="epipens-page">
+    <h1>Manage Your EpiPens</h1>
+    
+    {% if expired or expiring_soon %}
+    <div class="warnings-section">
+        {% if expired %}
+        <div class="alert alert-danger">
+            <h3>⚠️ Expired EpiPens</h3>
+            <p>The following EpiPen(s) have expired and should be replaced immediately:</p>
+            <ul>
+                {% for epipen in expired %}
+                <li><strong>{{ epipen.name }}</strong> - Expired {{ (-epipen.days_until_expiration()) }} days ago
+                    {% if epipen.location %} ({{ epipen.location }}){% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if expiring_soon %}
+        <div class="alert alert-warning">
+            <h3>⏰ Expiring Soon</h3>
+            <p>The following EpiPen(s) will expire within the next 30 days:</p>
+            <ul>
+                {% for epipen in expiring_soon %}
+                <li><strong>{{ epipen.name }}</strong> - Expires in {{ epipen.days_until_expiration() }} days ({{ epipen.expiration_date.strftime('%b %d, %Y') }})
+                    {% if epipen.location %} ({{ epipen.location }}){% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="epipens-container">
+        <div class="add-epipen-card">
+            <h2>Add New EpiPen</h2>
+            <form method="POST" action="{{ url_for('add_epipen') }}">
+                <div class="form-group">
+                    <label for="name">EpiPen Type *</label>
+                    <input type="text" id="name" name="name" required 
+                           placeholder="e.g., EpiPen, EpiPen Jr, Auvi-Q">
+                </div>
+                
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" 
+                           placeholder="e.g., Bedroom drawer, Purse, Car">
+                </div>
+                
+                <div class="form-group">
+                    <label for="expiration_date">Expiration Date *</label>
+                    <input type="date" id="expiration_date" name="expiration_date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="lot_number">Lot Number</label>
+                    <input type="text" id="lot_number" name="lot_number" 
+                           placeholder="e.g., ABC123456">
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" rows="3" 
+                              placeholder="Additional notes (optional)"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Add EpiPen</button>
+            </form>
+        </div>
+        
+        <div class="epipen-list-card">
+            <h2>Your EpiPens</h2>
+            {% if all_epipens %}
+                <div class="epipen-table">
+                    {% for epipen in all_epipens %}
+                        <div class="epipen-row {% if epipen.is_expired() %}expired{% elif epipen.needs_reminder(30) %}expiring-soon{% endif %}">
+                            <div class="epipen-info">
+                                <div class="epipen-header">
+                                    <span class="epipen-name">{{ epipen.name }}</span>
+                                    {% if epipen.is_expired() %}
+                                        <span class="status-badge status-expired">Expired</span>
+                                    {% elif epipen.needs_reminder(30) %}
+                                        <span class="status-badge status-expiring">Expiring Soon</span>
+                                    {% else %}
+                                        <span class="status-badge status-current">Current</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="epipen-details">
+                                    <div class="detail-row">
+                                        <strong>Expiration Date:</strong> {{ epipen.expiration_date.strftime('%B %d, %Y') }}
+                                        {% if not epipen.is_expired() %}
+                                            ({{ epipen.days_until_expiration() }} days remaining)
+                                        {% else %}
+                                            (expired {{ -epipen.days_until_expiration() }} days ago)
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if epipen.location %}
+                                    <div class="detail-row">
+                                        <strong>Location:</strong> {{ epipen.location }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if epipen.lot_number %}
+                                    <div class="detail-row">
+                                        <strong>Lot Number:</strong> {{ epipen.lot_number }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if epipen.notes %}
+                                    <div class="detail-row">
+                                        <strong>Notes:</strong> {{ epipen.notes }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="detail-row">
+                                        <small>Added: {{ epipen.added_date.strftime('%b %d, %Y') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="epipen-actions">
+                                <button onclick="showEditForm({{ epipen.id }})" class="btn btn-secondary btn-small">Edit</button>
+                                <form method="POST" action="{{ url_for('delete_epipen', epipen_id=epipen.id) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Are you sure you want to remove this EpiPen?');">
+                                    <button type="submit" class="btn btn-danger btn-small">Delete</button>
+                                </form>
+                            </div>
+                            
+                            <!-- Edit Form (hidden by default) -->
+                            <div id="edit-form-{{ epipen.id }}" class="edit-form" style="display: none;">
+                                <h3>Edit EpiPen</h3>
+                                <form method="POST" action="{{ url_for('edit_epipen', epipen_id=epipen.id) }}">
+                                    <div class="form-group">
+                                        <label for="edit_name_{{ epipen.id }}">EpiPen Type</label>
+                                        <input type="text" id="edit_name_{{ epipen.id }}" name="name" 
+                                               value="{{ epipen.name }}" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="edit_location_{{ epipen.id }}">Location</label>
+                                        <input type="text" id="edit_location_{{ epipen.id }}" name="location" 
+                                               value="{{ epipen.location or '' }}">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="edit_expiration_date_{{ epipen.id }}">Expiration Date</label>
+                                        <input type="date" id="edit_expiration_date_{{ epipen.id }}" 
+                                               name="expiration_date" 
+                                               value="{{ epipen.expiration_date.strftime('%Y-%m-%d') }}" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="edit_lot_number_{{ epipen.id }}">Lot Number</label>
+                                        <input type="text" id="edit_lot_number_{{ epipen.id }}" name="lot_number" 
+                                               value="{{ epipen.lot_number or '' }}">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="edit_notes_{{ epipen.id }}">Notes</label>
+                                        <textarea id="edit_notes_{{ epipen.id }}" name="notes" 
+                                                  rows="3">{{ epipen.notes or '' }}</textarea>
+                                    </div>
+                                    
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
+                                        <button type="button" onclick="hideEditForm({{ epipen.id }})" 
+                                                class="btn btn-secondary btn-small">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">
+                    You haven't added any EpiPens yet. Add your EpiPens to track their expiration dates and receive reminders.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <h3>💡 Important Information</h3>
+        <ul>
+            <li>EpiPens should be replaced before their expiration date</li>
+            <li>Store EpiPens at room temperature (59°F to 86°F or 15°C to 30°C)</li>
+            <li>Avoid extreme heat or cold</li>
+            <li>Check the solution regularly - it should be clear and colorless</li>
+            <li>Always carry your EpiPen with you if you have severe allergies</li>
+            <li>In case of emergency, call 911 immediately after using an EpiPen</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+function showEditForm(epipenId) {
+    document.getElementById('edit-form-' + epipenId).style.display = 'block';
+}
+
+function hideEditForm(epipenId) {
+    document.getElementById('edit-form-' + epipenId).style.display = 'none';
+}
+</script>
+{% endblock %}

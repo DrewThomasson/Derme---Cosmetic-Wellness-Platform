@@ -46,6 +46,7 @@ class User(UserMixin, db.Model):
     allergens = db.relationship('UserAllergen', backref='user', lazy=True, cascade='all, delete-orphan')
     safe_products = db.relationship('SafeProduct', backref='user', lazy=True, cascade='all, delete-orphan')
     allergic_products = db.relationship('AllergicProduct', backref='user', lazy=True, cascade='all, delete-orphan')
+    epipens = db.relationship('EpiPen', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -101,6 +102,31 @@ class KnownAllergen(db.Model):
     # Legacy fields for backward compatibility
     category = db.Column(db.String(100))
     description = db.Column(db.Text)
+
+class EpiPen(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)  # e.g., "EpiPen Jr", "EpiPen", "Auvi-Q"
+    location = db.Column(db.String(200))  # Where it's stored (e.g., "Bedroom drawer", "Purse")
+    expiration_date = db.Column(db.Date, nullable=False)
+    lot_number = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    added_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    def days_until_expiration(self):
+        """Calculate days until expiration"""
+        from datetime import date
+        delta = self.expiration_date - date.today()
+        return delta.days
+    
+    def is_expired(self):
+        """Check if EpiPen is expired"""
+        return self.days_until_expiration() < 0
+    
+    def needs_reminder(self, days_threshold=30):
+        """Check if EpiPen needs expiration reminder"""
+        days = self.days_until_expiration()
+        return 0 <= days <= days_threshold
 
 # Login manager user loader
 @login_manager.user_loader
@@ -643,11 +669,21 @@ def dashboard():
     allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.desc()).limit(5).all()
     potential_allergens = detect_potential_allergens(current_user.id)[:5]  # Top 5
     
+    # Get EpiPen information
+    epipens = EpiPen.query.filter_by(user_id=current_user.id).order_by(EpiPen.expiration_date.asc()).all()
+    
+    # Categorize epipens for dashboard warnings
+    expired_epipens = [e for e in epipens if e.is_expired()]
+    expiring_soon_epipens = [e for e in epipens if e.needs_reminder(30) and not e.is_expired()]
+    
     return render_template('dashboard.html', 
                          allergens=allergens, 
                          safe_products=safe_products,
                          allergic_products=allergic_products,
-                         potential_allergens=potential_allergens)
+                         potential_allergens=potential_allergens,
+                         epipens=epipens,
+                         expired_epipens=expired_epipens,
+                         expiring_soon_epipens=expiring_soon_epipens)
 
 @app.route('/allergens', methods=['GET', 'POST'])
 @login_required
@@ -876,6 +912,129 @@ def remove_potential_allergen(ingredient_name):
         flash('No instances found to remove', 'warning')
     
     return redirect(url_for('potential_allergens_page'))
+
+@app.route('/epipens')
+@login_required
+def manage_epipens():
+    """View and manage EpiPens"""
+    from datetime import date
+    epipens = EpiPen.query.filter_by(user_id=current_user.id).order_by(EpiPen.expiration_date.asc()).all()
+    
+    # Categorize epipens
+    expired = []
+    expiring_soon = []
+    current = []
+    
+    for epipen in epipens:
+        if epipen.is_expired():
+            expired.append(epipen)
+        elif epipen.needs_reminder(30):  # 30 days threshold
+            expiring_soon.append(epipen)
+        else:
+            current.append(epipen)
+    
+    # Create ordered list for display (expired first, then expiring soon, then current)
+    all_epipens = expired + expiring_soon + current
+    
+    return render_template('epipens.html', 
+                         expired=expired,
+                         expiring_soon=expiring_soon,
+                         current=current,
+                         all_epipens=all_epipens)
+
+@app.route('/epipens/add', methods=['POST'])
+@login_required
+def add_epipen():
+    """Add a new EpiPen"""
+    from datetime import datetime
+    
+    name = request.form.get('name')
+    location = request.form.get('location')
+    expiration_date_str = request.form.get('expiration_date')
+    lot_number = request.form.get('lot_number')
+    notes = request.form.get('notes')
+    
+    if not name or not expiration_date_str:
+        flash('EpiPen name and expiration date are required', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    try:
+        expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Invalid expiration date format', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    epipen = EpiPen(
+        user_id=current_user.id,
+        name=name,
+        location=location,
+        expiration_date=expiration_date,
+        lot_number=lot_number,
+        notes=notes
+    )
+    
+    db.session.add(epipen)
+    db.session.commit()
+    flash('EpiPen added successfully', 'success')
+    return redirect(url_for('manage_epipens'))
+
+@app.route('/epipens/edit/<int:epipen_id>', methods=['POST'])
+@login_required
+def edit_epipen(epipen_id):
+    """Edit an existing EpiPen"""
+    from datetime import datetime
+    
+    epipen = EpiPen.query.get_or_404(epipen_id)
+    
+    if epipen.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    name = request.form.get('name')
+    location = request.form.get('location')
+    expiration_date_str = request.form.get('expiration_date')
+    lot_number = request.form.get('lot_number')
+    notes = request.form.get('notes')
+    
+    # Validate required fields
+    if not name:
+        flash('EpiPen name is required', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    if not expiration_date_str:
+        flash('Expiration date is required', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    # Update fields
+    epipen.name = name
+    epipen.location = location if location else None
+    epipen.lot_number = lot_number if lot_number else None
+    epipen.notes = notes if notes else None
+    
+    try:
+        epipen.expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Invalid expiration date format', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    db.session.commit()
+    flash('EpiPen updated successfully', 'success')
+    return redirect(url_for('manage_epipens'))
+
+@app.route('/epipens/delete/<int:epipen_id>', methods=['POST'])
+@login_required
+def delete_epipen(epipen_id):
+    """Delete an EpiPen"""
+    epipen = EpiPen.query.get_or_404(epipen_id)
+    
+    if epipen.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    db.session.delete(epipen)
+    db.session.commit()
+    flash('EpiPen removed', 'success')
+    return redirect(url_for('manage_epipens'))
 
 
 def load_allergens_from_json():
