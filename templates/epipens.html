@@ -77,9 +77,9 @@
         
         <div class="epipen-list-card">
             <h2>Your EpiPens</h2>
-            {% if current or expiring_soon or expired %}
+            {% if all_epipens %}
                 <div class="epipen-table">
-                    {% for epipen in expired + expiring_soon + current %}
+                    {% for epipen in all_epipens %}
                         <div class="epipen-row {% if epipen.is_expired() %}expired{% elif epipen.needs_reminder(30) %}expiring-soon{% endif %}">
                             <div class="epipen-info">
                                 <div class="epipen-header">

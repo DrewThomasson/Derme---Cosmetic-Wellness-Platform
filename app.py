@@ -933,10 +933,14 @@ def manage_epipens():
         else:
             current.append(epipen)
     
+    # Create ordered list for display (expired first, then expiring soon, then current)
+    all_epipens = expired + expiring_soon + current
+    
     return render_template('epipens.html', 
                          expired=expired,
                          expiring_soon=expiring_soon,
-                         current=current)
+                         current=current,
+                         all_epipens=all_epipens)
 
 @app.route('/epipens/add', methods=['POST'])
 @login_required
@@ -992,20 +996,26 @@ def edit_epipen(epipen_id):
     lot_number = request.form.get('lot_number')
     notes = request.form.get('notes')
     
-    if name:
-        epipen.name = name
-    if location is not None:
-        epipen.location = location
-    if expiration_date_str:
-        try:
-            epipen.expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            flash('Invalid expiration date format', 'error')
-            return redirect(url_for('manage_epipens'))
-    if lot_number is not None:
-        epipen.lot_number = lot_number
-    if notes is not None:
-        epipen.notes = notes
+    # Validate required fields
+    if not name:
+        flash('EpiPen name is required', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    if not expiration_date_str:
+        flash('Expiration date is required', 'error')
+        return redirect(url_for('manage_epipens'))
+    
+    # Update fields
+    epipen.name = name
+    epipen.location = location if location else None
+    epipen.lot_number = lot_number if lot_number else None
+    epipen.notes = notes if notes else None
+    
+    try:
+        epipen.expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Invalid expiration date format', 'error')
+        return redirect(url_for('manage_epipens'))
     
     db.session.commit()
     flash('EpiPen updated successfully', 'success')
