@@ -86,6 +86,26 @@ class AllergicProduct(db.Model):
     scan_date = db.Column(db.DateTime, default=db.func.current_timestamp())
     reaction_severity = db.Column(db.String(50), default='unknown')  # mild, moderate, severe, unknown
 
+class Medication(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    dosage = db.Column(db.String(100))
+    frequency = db.Column(db.String(50), nullable=False)  # daily, twice_daily, three_times_daily, weekly, as_needed
+    times = db.Column(db.String(200))  # JSON array of times e.g., ["08:00", "20:00"]
+    notes = db.Column(db.Text)
+    active = db.Column(db.Boolean, default=True)
+    created_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    logs = db.relationship('MedicationLog', backref='medication', lazy=True, cascade='all, delete-orphan')
+
+class MedicationLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    medication_id = db.Column(db.Integer, db.ForeignKey('medication.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    taken_at = db.Column(db.DateTime, nullable=False)
+    scheduled_time = db.Column(db.String(10))  # e.g., "08:00"
+    notes = db.Column(db.Text)
+
 class IngredientSynonym(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     primary_name = db.Column(db.String(200), nullable=False)
@@ -638,16 +658,56 @@ def reset_password():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    import json
+    from datetime import date, time, timedelta
+    
     allergens = UserAllergen.query.filter_by(user_id=current_user.id).all()
     safe_products = SafeProduct.query.filter_by(user_id=current_user.id).order_by(SafeProduct.scan_date.desc()).limit(5).all()
     allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.desc()).limit(5).all()
     potential_allergens = detect_potential_allergens(current_user.id)[:5]  # Top 5
     
+    # Get today's medication reminders
+    medications = Medication.query.filter_by(user_id=current_user.id, active=True).all()
+    today = date.today()
+    upcoming_reminders = []
+    
+    for med in medications:
+        if not med.times:
+            continue
+        try:
+            times_list = json.loads(med.times)
+        except:
+            continue
+        
+        for time_str in times_list:
+            try:
+                hour, minute = map(int, time_str.split(':'))
+                scheduled_datetime = datetime.combine(today, time(hour, minute))
+                
+                # Check if already logged
+                log = MedicationLog.query.filter(
+                    MedicationLog.medication_id == med.id,
+                    MedicationLog.scheduled_time == time_str,
+                    db.func.date(MedicationLog.taken_at) == today
+                ).first()
+                
+                if not log and datetime.now() < scheduled_datetime + timedelta(hours=2):
+                    upcoming_reminders.append({
+                        'medication': med,
+                        'time': time_str,
+                        'is_overdue': datetime.now() > scheduled_datetime
+                    })
+            except ValueError:
+                continue
+    
+    upcoming_reminders.sort(key=lambda x: x['time'])
+    
     return render_template('dashboard.html', 
                          allergens=allergens, 
                          safe_products=safe_products,
                          allergic_products=allergic_products,
-                         potential_allergens=potential_allergens)
+                         potential_allergens=potential_allergens,
+                         upcoming_reminders=upcoming_reminders[:5])
 
 @app.route('/allergens', methods=['GET', 'POST'])
 @login_required
@@ -876,6 +936,182 @@ def remove_potential_allergen(ingredient_name):
         flash('No instances found to remove', 'warning')
     
     return redirect(url_for('potential_allergens_page'))
+
+# Medication Tracker Routes
+@app.route('/medications')
+@login_required
+def medications():
+    """View all medications"""
+    medications = Medication.query.filter_by(user_id=current_user.id, active=True).order_by(Medication.name).all()
+    return render_template('medications.html', medications=medications)
+
+@app.route('/medications/add', methods=['POST'])
+@login_required
+def add_medication():
+    """Add a new medication"""
+    import json
+    
+    name = request.form.get('name')
+    dosage = request.form.get('dosage')
+    frequency = request.form.get('frequency')
+    times_str = request.form.get('times', '')
+    notes = request.form.get('notes', '')
+    
+    if not name or not frequency:
+        flash('Medication name and frequency are required', 'error')
+        return redirect(url_for('medications'))
+    
+    # Parse times into JSON array
+    times_list = [t.strip() for t in times_str.split(',') if t.strip()]
+    times_json = json.dumps(times_list) if times_list else None
+    
+    medication = Medication(
+        user_id=current_user.id,
+        name=name,
+        dosage=dosage,
+        frequency=frequency,
+        times=times_json,
+        notes=notes
+    )
+    
+    db.session.add(medication)
+    db.session.commit()
+    flash('Medication added successfully', 'success')
+    return redirect(url_for('medications'))
+
+@app.route('/medications/edit/<int:medication_id>', methods=['POST'])
+@login_required
+def edit_medication(medication_id):
+    """Edit an existing medication"""
+    import json
+    
+    medication = Medication.query.get_or_404(medication_id)
+    
+    if medication.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('medications'))
+    
+    medication.name = request.form.get('name', medication.name)
+    medication.dosage = request.form.get('dosage', medication.dosage)
+    medication.frequency = request.form.get('frequency', medication.frequency)
+    medication.notes = request.form.get('notes', medication.notes)
+    
+    times_str = request.form.get('times', '')
+    times_list = [t.strip() for t in times_str.split(',') if t.strip()]
+    medication.times = json.dumps(times_list) if times_list else None
+    
+    db.session.commit()
+    flash('Medication updated successfully', 'success')
+    return redirect(url_for('medications'))
+
+@app.route('/medications/delete/<int:medication_id>', methods=['POST'])
+@login_required
+def delete_medication(medication_id):
+    """Deactivate a medication"""
+    medication = Medication.query.get_or_404(medication_id)
+    
+    if medication.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('medications'))
+    
+    medication.active = False
+    db.session.commit()
+    flash('Medication removed', 'success')
+    return redirect(url_for('medications'))
+
+@app.route('/medications/log/<int:medication_id>', methods=['POST'])
+@login_required
+def log_medication(medication_id):
+    """Log medication intake"""
+    medication = Medication.query.get_or_404(medication_id)
+    
+    if medication.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('medication_reminders'))
+    
+    scheduled_time = request.form.get('scheduled_time')
+    notes = request.form.get('notes', '')
+    
+    log = MedicationLog(
+        medication_id=medication_id,
+        user_id=current_user.id,
+        taken_at=datetime.now(),
+        scheduled_time=scheduled_time,
+        notes=notes
+    )
+    
+    db.session.add(log)
+    db.session.commit()
+    flash(f'Logged intake for {medication.name}', 'success')
+    return redirect(url_for('medication_reminders'))
+
+@app.route('/medications/reminders')
+@login_required
+def medication_reminders():
+    """View medication reminders for today"""
+    import json
+    from datetime import date, time, timedelta
+    
+    medications = Medication.query.filter_by(user_id=current_user.id, active=True).all()
+    
+    today = date.today()
+    reminders = []
+    
+    for med in medications:
+        if not med.times:
+            continue
+            
+        try:
+            times_list = json.loads(med.times)
+        except:
+            continue
+        
+        for time_str in times_list:
+            try:
+                # Parse time (format: "HH:MM")
+                hour, minute = map(int, time_str.split(':'))
+                scheduled_datetime = datetime.combine(today, time(hour, minute))
+                
+                # Check if already logged today at this time
+                log = MedicationLog.query.filter(
+                    MedicationLog.medication_id == med.id,
+                    MedicationLog.scheduled_time == time_str,
+                    db.func.date(MedicationLog.taken_at) == today
+                ).first()
+                
+                is_taken = log is not None
+                is_overdue = datetime.now() > scheduled_datetime and not is_taken
+                
+                reminders.append({
+                    'medication': med,
+                    'time': time_str,
+                    'scheduled_datetime': scheduled_datetime,
+                    'is_taken': is_taken,
+                    'is_overdue': is_overdue,
+                    'taken_at': log.taken_at if log else None
+                })
+            except ValueError:
+                continue
+    
+    # Sort reminders by time
+    reminders.sort(key=lambda x: x['scheduled_datetime'])
+    
+    return render_template('medication_reminders.html', reminders=reminders)
+
+@app.route('/medications/history')
+@login_required
+def medication_history():
+    """View medication intake history"""
+    from datetime import timedelta
+    
+    # Get logs from the last 30 days
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    logs = MedicationLog.query.filter(
+        MedicationLog.user_id == current_user.id,
+        MedicationLog.taken_at >= thirty_days_ago
+    ).order_by(MedicationLog.taken_at.desc()).all()
+    
+    return render_template('medication_history.html', logs=logs)
 
 
 def load_allergens_from_json():
