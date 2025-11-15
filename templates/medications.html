@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}My Medications - Derme{% endblock %}
+
+{% block content %}
+<div class="medications-page">
+    <div class="page-header">
+        <h1>💊 My Medications</h1>
+        <button class="btn btn-primary" onclick="showAddMedicationForm()">Add Medication</button>
+    </div>
+
+    <!-- Add Medication Form (Hidden by default) -->
+    <div id="addMedicationForm" class="form-card" style="display: none;">
+        <h2>Add New Medication</h2>
+        <form method="POST" action="{{ url_for('add_medication') }}">
+            <div class="form-group">
+                <label for="name">Medication Name *</label>
+                <input type="text" id="name" name="name" required placeholder="e.g., Aspirin">
+            </div>
+            
+            <div class="form-group">
+                <label for="dosage">Dosage</label>
+                <input type="text" id="dosage" name="dosage" placeholder="e.g., 100mg, 1 tablet">
+            </div>
+            
+            <div class="form-group">
+                <label for="frequency">Frequency *</label>
+                <select id="frequency" name="frequency" required>
+                    <option value="daily">Once Daily</option>
+                    <option value="twice_daily">Twice Daily</option>
+                    <option value="three_times_daily">Three Times Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="as_needed">As Needed</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="times">Times (comma-separated, 24-hour format)</label>
+                <input type="text" id="times" name="times" placeholder="e.g., 08:00, 20:00">
+                <small>Enter times in HH:MM format, separated by commas</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" rows="3" placeholder="Additional notes about this medication"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Medication</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddMedicationForm()">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Medications List -->
+    {% if medications %}
+        <div class="medications-list">
+            {% for medication in medications %}
+                <div class="medication-card">
+                    <div class="medication-header">
+                        <h3>{{ medication.name }}</h3>
+                        <div class="medication-actions">
+                            <button class="btn btn-small" onclick="editMedication({{ medication.id }})">Edit</button>
+                            <form method="POST" action="{{ url_for('delete_medication', medication_id=medication.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Remove this medication?')">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="medication-details">
+                        {% if medication.dosage %}
+                            <p><strong>Dosage:</strong> {{ medication.dosage }}</p>
+                        {% endif %}
+                        
+                        <p><strong>Frequency:</strong> {{ medication.frequency.replace('_', ' ').title() }}</p>
+                        
+                        {% if medication.times %}
+                            <p><strong>Times:</strong> {{ medication.times.strip('[]"').replace('","', ', ') }}</p>
+                        {% endif %}
+                        
+                        {% if medication.notes %}
+                            <p><strong>Notes:</strong> {{ medication.notes }}</p>
+                        {% endif %}
+                        
+                        <p class="medication-date"><small>Added: {{ medication.created_date.strftime('%b %d, %Y') }}</small></p>
+                    </div>
+                    
+                    <!-- Edit Form (Hidden by default) -->
+                    <div id="editForm{{ medication.id }}" class="edit-form" style="display: none;">
+                        <h4>Edit Medication</h4>
+                        <form method="POST" action="{{ url_for('edit_medication', medication_id=medication.id) }}">
+                            <div class="form-group">
+                                <label>Medication Name *</label>
+                                <input type="text" name="name" value="{{ medication.name }}" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Dosage</label>
+                                <input type="text" name="dosage" value="{{ medication.dosage or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Frequency *</label>
+                                <select name="frequency" required>
+                                    <option value="daily" {% if medication.frequency == 'daily' %}selected{% endif %}>Once Daily</option>
+                                    <option value="twice_daily" {% if medication.frequency == 'twice_daily' %}selected{% endif %}>Twice Daily</option>
+                                    <option value="three_times_daily" {% if medication.frequency == 'three_times_daily' %}selected{% endif %}>Three Times Daily</option>
+                                    <option value="weekly" {% if medication.frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                                    <option value="as_needed" {% if medication.frequency == 'as_needed' %}selected{% endif %}>As Needed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Times (comma-separated)</label>
+                                <input type="text" name="times" value="{{ medication.times.strip('[]"').replace('","', ', ') if medication.times else '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Notes</label>
+                                <textarea name="notes" rows="3">{{ medication.notes or '' }}</textarea>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelEdit({{ medication.id }})">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No medications added yet.</p>
+            <p>Click "Add Medication" to get started tracking your medications.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function showAddMedicationForm() {
+    document.getElementById('addMedicationForm').style.display = 'block';
+}
+
+function hideAddMedicationForm() {
+    document.getElementById('addMedicationForm').style.display = 'none';
+}
+
+function editMedication(id) {
+    document.getElementById('editForm' + id).style.display = 'block';
+}
+
+function cancelEdit(id) {
+    document.getElementById('editForm' + id).style.display = 'none';
+}
+</script>
+{% endblock %}
