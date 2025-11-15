@@ -837,3 +837,241 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+/* Medication Tracker Styles */
+.medications-page,
+.reminders-page,
+.history-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    margin-bottom: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.page-description {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+/* Medication Cards */
+.medication-card,
+.reminder-card,
+.history-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.medication-header,
+.reminder-header,
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.medication-header h3,
+.reminder-header h3,
+.history-header h4 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.medication-actions,
+.reminder-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.medication-details,
+.reminder-details,
+.history-notes {
+    margin-top: 1rem;
+}
+
+.medication-details p,
+.reminder-details p,
+.history-notes p {
+    margin: 0.5rem 0;
+}
+
+.medication-date {
+    color: #6c757d;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Reminder Specific Styles */
+.reminder-card.reminder-taken {
+    background: #f0f9f4;
+    border-left: 4px solid var(--success-color);
+}
+
+.reminder-card.reminder-overdue {
+    background: #fff8f0;
+    border-left: 4px solid var(--warning-color);
+}
+
+.reminder-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.time-badge {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-badge.status-taken {
+    background: var(--success-color);
+    color: white;
+}
+
+.status-badge.status-overdue {
+    background: var(--warning-color);
+    color: #333;
+}
+
+.status-badge.status-upcoming {
+    background: var(--accent-color);
+    color: white;
+}
+
+.dosage-badge {
+    display: inline-block;
+    background: var(--light-bg);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+}
+
+.taken-info {
+    color: var(--success-color);
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+/* Dashboard Reminder Widget */
+.reminder-list {
+    margin-top: 1rem;
+}
+
+.reminder-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--light-bg);
+    border-radius: 6px;
+}
+
+.reminder-item.overdue {
+    background: #fff8f0;
+    border-left: 3px solid var(--warning-color);
+}
+
+.reminder-item .reminder-time {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 50px;
+}
+
+.reminder-item .reminder-name {
+    flex-grow: 1;
+}
+
+.overdue-badge {
+    background: var(--warning-color);
+    color: #333;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Form Styles for Medications */
+.form-card {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.edit-form,
+.log-form {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border-color);
+}
+
+/* History Page */
+.date-header {
+    margin: 2rem 0 1rem 0;
+}
+
+.date-header h3 {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.medication-info {
+    flex-grow: 1;
+}
+
+.time-info {
+    text-align: right;
+}
+
+.time-info small {
+    display: block;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}

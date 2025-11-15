@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Medication Reminders - Derme{% endblock %}
+
+{% block content %}
+<div class="reminders-page">
+    <div class="page-header">
+        <h1>⏰ Today's Medication Reminders</h1>
+        <a href="{{ url_for('medications') }}" class="btn btn-secondary">Manage Medications</a>
+    </div>
+
+    {% if reminders %}
+        <div class="reminders-list">
+            {% for reminder in reminders %}
+                <div class="reminder-card {% if reminder.is_taken %}reminder-taken{% elif reminder.is_overdue %}reminder-overdue{% endif %}">
+                    <div class="reminder-header">
+                        <div class="reminder-time">
+                            <span class="time-badge">{{ reminder.time }}</span>
+                            {% if reminder.is_taken %}
+                                <span class="status-badge status-taken">✓ Taken</span>
+                            {% elif reminder.is_overdue %}
+                                <span class="status-badge status-overdue">⚠️ Overdue</span>
+                            {% else %}
+                                <span class="status-badge status-upcoming">Upcoming</span>
+                            {% endif %}
+                        </div>
+                        <h3>{{ reminder.medication.name }}</h3>
+                    </div>
+                    
+                    <div class="reminder-details">
+                        {% if reminder.medication.dosage %}
+                            <p><strong>Dosage:</strong> {{ reminder.medication.dosage }}</p>
+                        {% endif %}
+                        
+                        {% if reminder.medication.notes %}
+                            <p><strong>Notes:</strong> {{ reminder.medication.notes }}</p>
+                        {% endif %}
+                        
+                        {% if reminder.is_taken %}
+                            <p class="taken-info">
+                                <small>Logged at: {{ reminder.taken_at.strftime('%I:%M %p') }}</small>
+                            </p>
+                        {% endif %}
+                    </div>
+                    
+                    {% if not reminder.is_taken %}
+                        <div class="reminder-actions">
+                            <button class="btn btn-primary" onclick="showLogForm({{ reminder.medication.id }}, '{{ reminder.time }}')">
+                                Mark as Taken
+                            </button>
+                        </div>
+                        
+                        <!-- Log Form (Hidden by default) -->
+                        <div id="logForm{{ reminder.medication.id }}_{{ reminder.time.replace(':', '') }}" class="log-form" style="display: none;">
+                            <form method="POST" action="{{ url_for('log_medication', medication_id=reminder.medication.id) }}">
+                                <input type="hidden" name="scheduled_time" value="{{ reminder.time }}">
+                                
+                                <div class="form-group">
+                                    <label>Notes (optional)</label>
+                                    <textarea name="notes" rows="2" placeholder="Any notes about this intake?"></textarea>
+                                </div>
+                                
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Log Intake</button>
+                                    <button type="button" class="btn btn-secondary" onclick="hideLogForm({{ reminder.medication.id }}, '{{ reminder.time }}')">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No medication reminders for today.</p>
+            <p>Add medications with scheduled times to see reminders here.</p>
+            <a href="{{ url_for('medications') }}" class="btn btn-primary">Add Medications</a>
+        </div>
+    {% endif %}
+
+    <div class="info-card">
+        <h3>💡 Tip</h3>
+        <p>Check this page daily to stay on track with your medication schedule. You can also view your intake history to monitor adherence over time.</p>
+        <a href="{{ url_for('medication_history') }}" class="btn btn-small">View History</a>
+    </div>
+</div>
+
+<script>
+function showLogForm(medicationId, time) {
+    const formId = 'logForm' + medicationId + '_' + time.replace(':', '');
+    document.getElementById(formId).style.display = 'block';
+}
+
+function hideLogForm(medicationId, time) {
+    const formId = 'logForm' + medicationId + '_' + time.replace(':', '');
+    document.getElementById(formId).style.display = 'none';
+}
+</script>
+{% endblock %}

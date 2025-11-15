@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Medication History - Derme{% endblock %}
+
+{% block content %}
+<div class="history-page">
+    <div class="page-header">
+        <h1>📊 Medication History</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('medication_reminders') }}" class="btn btn-secondary">Today's Reminders</a>
+            <a href="{{ url_for('medications') }}" class="btn btn-secondary">Manage Medications</a>
+        </div>
+    </div>
+
+    <p class="page-description">Viewing medication intake for the last 30 days</p>
+
+    {% if logs %}
+        <div class="history-list">
+            {% set current_date = None %}
+            {% for log in logs %}
+                {% set log_date = log.taken_at.strftime('%Y-%m-%d') %}
+                {% if log_date != current_date %}
+                    {% set current_date = log_date %}
+                    <div class="date-header">
+                        <h3>{{ log.taken_at.strftime('%A, %B %d, %Y') }}</h3>
+                    </div>
+                {% endif %}
+                
+                <div class="history-card">
+                    <div class="history-header">
+                        <div class="medication-info">
+                            <h4>{{ log.medication.name }}</h4>
+                            {% if log.medication.dosage %}
+                                <span class="dosage-badge">{{ log.medication.dosage }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="time-info">
+                            <span class="time-badge">{{ log.taken_at.strftime('%I:%M %p') }}</span>
+                            {% if log.scheduled_time %}
+                                <small>Scheduled: {{ log.scheduled_time }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if log.notes %}
+                        <div class="history-notes">
+                            <p><strong>Notes:</strong> {{ log.notes }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No medication intake logged in the last 30 days.</p>
+            <p>Start logging your medications to track your adherence over time.</p>
+            <a href="{{ url_for('medication_reminders') }}" class="btn btn-primary">View Today's Reminders</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
