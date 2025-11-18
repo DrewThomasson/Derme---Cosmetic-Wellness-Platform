@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Find Dermatologist</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .find-derm-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .filters label {
+            display: block;
+            font-size: 0.9rem;
+        }
+        .filters input, .filters select {
+            padding: 0.4rem;
+            min-width: 150px;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        .warning {
+            color: #b00020;
+            font-size: 0.9rem;
+        }
+        .provider-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .provider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .provider-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        .provider-badges span {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            margin-left: 0.3rem;
+        }
+        .badge-telederm {
+            background-color: #e0f2f1;
+        }
+        .badge-rating {
+            background-color: #e3f2fd;
+        }
+    </style>
+</head>
+<body>
+<div class="find-derm-container">
+    <h1>Find a Dermatologist</h1>
+    <p>Search for nearby dermatologists and filter by insurance, rating, and distance.</p>
+
+    <form method="GET" class="filters">
+        <div>
+            <label for="location">Location (city or zip)</label>
+            <input type="text" id="location" name="location"
+                   placeholder="e.g., Atlanta, GA"
+                   value="{{ location_query }}">
+        </div>
+
+        <div>
+            <label for="insurance">Insurance</label>
+            <select id="insurance" name="insurance">
+                <option value="">Any</option>
+                {% for ins in insurance_options %}
+                    <option value="{{ ins }}" {% if insurance_filter == ins %}selected{% endif %}>
+                        {{ ins }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="min_rating">Min Rating</label>
+            <input type="number" step="0.1" min="0" max="5"
+                   id="min_rating" name="min_rating"
+                   value="{{ min_rating_value }}">
+        </div>
+
+        <div>
+            <label for="max_distance">Max Distance (km)</label>
+            <input type="number" step="0.1" min="0"
+                   id="max_distance" name="max_distance"
+                   value="{{ max_distance_value }}">
+        </div>
+
+        <div>
+            <label>
+                <input type="checkbox" name="telederm_only"
+                       {% if telederm_only %}checked{% endif %}>
+                Tele-dermatology only
+            </label>
+        </div>
+
+        <div>
+            <label>&nbsp;</label>
+            <button type="submit" class="btn">Search</button>
+        </div>
+    </form>
+
+    {% if location_warning %}
+        <p class="warning">{{ location_warning }}</p>
+    {% endif %}
+
+    {% if not providers %}
+        <p>No dermatologists match the selected filters.</p>
+    {% else %}
+        {% for p in providers %}
+            <div class="provider-card">
+                <div class="provider-header">
+                    <div class="provider-name">{{ p.name }}</div>
+                    <div class="provider-badges">
+                        <span class="badge-rating">⭐ {{ "%.1f"|format(p.rating) }}</span>
+                        <span>{{ "%.1f"|format(p.distance_km) }} km</span>
+                        {% if p.telederm %}
+                            <span class="badge-telederm">Tele-derm available</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <p>{{ p.address }}</p>
+                <p><strong>Insurance:</strong> {{ p.insurance | join(", ") }}</p>
+                <p><strong>Phone:</strong> <a href="tel:{{ p.phone }}">{{ p.phone }}</a></p>
+
+                <div>
+                    <a class="btn" href="tel:{{ p.phone }}">Call</a>
+
+                    <a class="btn" target="_blank"
+                       href="https://www.google.com/maps/search/?api=1&query={{ p.address | urlencode }}">
+                        Directions
+                    </a>
+
+                    {% if p.telederm %}
+                        <a class="btn" target="_blank"
+                           href="https://example.com/telederm/{{ loop.index }}">
+                            Tele-derm Visit
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+</body>
+</html>
