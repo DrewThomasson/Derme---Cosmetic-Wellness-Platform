@@ -87,6 +87,36 @@
         </div>
     </div>
     {% endif %}
+
+    {% if results.analysis.explanations %}
+    <div class="results-section info">
+        <h2> Why These Ingredients Are Risky</h2>
+        <div class="ingredient-list">
+            {% for expl in results.analysis.explanations %}
+                <div class="ingredient-item">
+                    <div>
+                        <span class="ingredient-name">{{ expl.ingredient }}</span>
+                        {% if expl.severity_context %}
+                            <span class="category-badge">{{ expl.severity_context|capitalize }}</span>
+                        {% endif %}
+                        {% if expl.source %}
+                            <span class="category-badge" style="background:#555;">Source: {{ expl.source.replace('_', ' ') }}</span>
+                        {% endif %}
+                        {% if expl.knowledge_missing %}
+                            <span class="category-badge" style="background:#c47e00;">No KB record</span>
+                        {% endif %}
+                    </div>
+                    {% if expl.explanation %}
+                        <p class="ingredient-description">{{ expl.explanation }}</p>
+                    {% endif %}
+                    {% if expl.community_summary %}
+                        <p class="ingredient-description"><strong>Community insights:</strong> {{ expl.community_summary }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     
     {% if results.analysis.potential_allergens %}
     <div class="results-section warning">
