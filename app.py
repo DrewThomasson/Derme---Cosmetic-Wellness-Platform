@@ -5,11 +5,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import requests
 import pytesseract
 from PIL import Image
 import io
 import re
-from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -18,12 +18,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///derme.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['SYMPTOM_UPLOAD_FOLDER'] = os.path.join(app.config['UPLOAD_FOLDER'], 'symptoms')
 
 # Detect if running on HuggingFace Spaces
 RUNNING_ON_HUGGINGFACE = os.environ.get('SPACE_ID') is not None
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['SYMPTOM_UPLOAD_FOLDER'], exist_ok=True)
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -47,6 +49,7 @@ class User(UserMixin, db.Model):
     allergens = db.relationship('UserAllergen', backref='user', lazy=True, cascade='all, delete-orphan')
     safe_products = db.relationship('SafeProduct', backref='user', lazy=True, cascade='all, delete-orphan')
     allergic_products = db.relationship('AllergicProduct', backref='user', lazy=True, cascade='all, delete-orphan')
+    symptom_entries = db.relationship('SymptomEntry', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -102,6 +105,22 @@ class KnownAllergen(db.Model):
     # Legacy fields for backward compatibility
     category = db.Column(db.String(100))
     description = db.Column(db.Text)
+
+class SymptomEntry(db.Model):
+    """User symptom journal entry (UC-8)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    symptom = db.Column(db.String(255), nullable=False)
+    severity = db.Column(db.String(50), nullable=False, default='mild')  # mild, moderate, severe, unknown
+    occurred_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    duration_minutes = db.Column(db.Integer)
+    triggers = db.Column(db.Text)
+    photo_path = db.Column(db.String(500))
+    pollen_index = db.Column(db.Float)
+    aqi = db.Column(db.Integer)
+    env_source = db.Column(db.String(50))
+    env_status = db.Column(db.String(50), default='pending_lookup')  # pending_lookup, attached, queued_offline, missing, failed
+    sync_error = db.Column(db.Text)
 
 # Login manager user loader
 @login_manager.user_loader
@@ -342,6 +361,69 @@ def severity_to_score(severity):
     if s == "severe":
         return 5
     return 2  # default / unknown
+
+# Environmental enrichment helpers for symptom logging (UC-8)
+DEFAULT_LATITUDE = float(os.environ.get("DEFAULT_LATITUDE", 33.749))
+DEFAULT_LONGITUDE = float(os.environ.get("DEFAULT_LONGITUDE", -84.388))
+
+def fetch_environmental_context(date_obj):
+    """
+    Try to enrich a symptom entry with pollen / AQI data.
+    1) Use mock data (no network).
+    2) Attempt Open-Meteo air-quality API (public, no key) as a lightweight real source.
+    """
+    if not date_obj:
+        return {"pollen_index": None, "aqi": None, "source": "missing"}
+
+    date_str = date_obj.strftime("%Y-%m-%d")
+    mock = next((e for e in MOCK_ENVIRONMENT_DATA if e["date"] == date_str), None)
+    if mock:
+        enriched = dict(mock)
+        enriched["source"] = "mock"
+        return enriched
+
+    try:
+        air_quality_resp = requests.get(
+            "https://air-quality-api.open-meteo.com/v1/air-quality",
+            params={
+                "latitude": DEFAULT_LATITUDE,
+                "longitude": DEFAULT_LONGITUDE,
+                "hourly": "us_aqi,pm10",
+                "start_date": date_str,
+                "end_date": date_str,
+            },
+            timeout=6,
+        )
+        if air_quality_resp.ok:
+            data = air_quality_resp.json() or {}
+            hourly = data.get("hourly", {})
+            aqi_list = hourly.get("us_aqi") or []
+            pm10_list = hourly.get("pm10") or []
+            aqi_value = aqi_list[0] if len(aqi_list) > 0 else None
+            pollen_proxy = pm10_list[0] if len(pm10_list) > 0 else None
+            return {
+                "date": date_str,
+                "pollen_index": pollen_proxy,
+                "aqi": aqi_value,
+                "source": "open-meteo",
+            }
+    except Exception as exc:
+        print(f"[symptoms] Environment fetch failed: {exc}")
+
+    return {"pollen_index": None, "aqi": None, "source": "missing"}
+
+def attach_environment_to_entry(entry):
+    """Populate pollen/AQI fields on a SymptomEntry if possible."""
+    env = fetch_environmental_context(entry.occurred_at)
+    entry.pollen_index = env.get("pollen_index")
+    entry.aqi = env.get("aqi")
+    entry.env_source = env.get("source")
+    if entry.pollen_index is not None or entry.aqi is not None:
+        entry.env_status = "attached"
+        entry.sync_error = None
+    else:
+        entry.env_status = "missing"
+        entry.sync_error = "No environmental data available for that date."
 
 # Routes
 @app.context_processor
@@ -716,77 +798,214 @@ def dashboard():
                          potential_allergens=potential_allergens)
 
 # -------------------------------------------------------------------
+# UC-8: Log Symptoms & Triggers
+# -------------------------------------------------------------------
+@app.route('/symptoms', methods=['GET', 'POST'])
+@login_required
+def symptoms():
+    """Allow users to log symptoms, severity, timing, photos, and triggers."""
+    if request.method == 'POST':
+        symptom_text = request.form.get('symptom', '').strip()
+        if not symptom_text:
+            flash('Please describe the symptom you experienced.', 'error')
+            return redirect(url_for('symptoms'))
+
+        severity = request.form.get('severity', 'mild')
+        occurred_at_str = request.form.get('occurred_at')
+        offline_mode = request.form.get('offline_mode') == 'on'
+        quick_log = request.form.get('quick_log') == '1'
+
+        occurred_at = datetime.utcnow()
+        if occurred_at_str:
+            try:
+                # HTML datetime-local -> YYYY-MM-DDTHH:MM
+                occurred_at = datetime.strptime(occurred_at_str, "%Y-%m-%dT%H:%M")
+            except Exception:
+                pass
+
+        duration_raw = request.form.get('duration_minutes')
+        duration_minutes = None
+        try:
+            duration_minutes = int(duration_raw) if duration_raw else None
+        except Exception:
+            duration_minutes = None
+
+        triggers = request.form.get('triggers', '').strip()
+        photo_path = None
+        photo_file = request.files.get('photo') if request.files else None
+
+        if photo_file and photo_file.filename:
+            filename = secure_filename(photo_file.filename)
+            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            filename = f"{current_user.id}_{timestamp}_{filename}"
+            save_path = os.path.join(app.config['SYMPTOM_UPLOAD_FOLDER'], filename)
+            photo_file.save(save_path)
+            photo_path = os.path.join('uploads/symptoms', filename).replace('\\', '/')
+
+        entry = SymptomEntry(
+            user_id=current_user.id,
+            symptom=symptom_text,
+            severity=severity,
+            occurred_at=occurred_at,
+            duration_minutes=duration_minutes,
+            triggers=triggers,
+            photo_path=photo_path,
+            env_status='queued_offline' if offline_mode else 'pending_lookup'
+        )
+
+        if offline_mode:
+            entry.sync_error = "Queued while offline. Tap sync later."
+        else:
+            try:
+                attach_environment_to_entry(entry)
+            except Exception as exc:
+                entry.env_status = 'failed'
+                entry.sync_error = str(exc)
+
+        db.session.add(entry)
+        db.session.commit()
+
+        if offline_mode:
+            flash('Symptom saved offline. Sync later when you are back online.', 'info')
+        elif entry.env_status == 'attached':
+            flash('Symptom logged and enriched with environmental data.', 'success')
+        else:
+            flash('Symptom logged. Environmental data unavailable; you can retry sync later.', 'warning')
+        return redirect(url_for('symptoms'))
+
+    entries = SymptomEntry.query.filter_by(user_id=current_user.id).order_by(SymptomEntry.occurred_at.desc()).all()
+    offline_pending = [e for e in entries if e.env_status == 'queued_offline']
+    return render_template('symptoms.html', entries=entries, offline_pending=len(offline_pending))
+
+@app.route('/symptoms/sync', methods=['POST'])
+@login_required
+def sync_symptom_entries():
+    """Retry attaching environmental data for offline/pending entries."""
+    pending_entries = SymptomEntry.query.filter(
+        SymptomEntry.user_id == current_user.id,
+        SymptomEntry.env_status.in_(["queued_offline", "missing", "failed"])
+    ).all()
+
+    updated = 0
+    for entry in pending_entries:
+        try:
+            attach_environment_to_entry(entry)
+            updated += 1
+        except Exception as exc:
+            entry.env_status = 'failed'
+            entry.sync_error = str(exc)
+
+    db.session.commit()
+
+    if updated:
+        flash(f'Synced {updated} symptom entr{"y" if updated == 1 else "ies"} with environment data.', 'success')
+    else:
+        flash('No symptom entries needed syncing.', 'info')
+    return redirect(url_for('symptoms'))
+
+# -------------------------------------------------------------------
 # UC-9: View Seasonal Timeline & Heatmaps
 # -------------------------------------------------------------------
 @app.route('/analytics', methods=['GET'])
 @login_required
 def analytics():
     """
-    UC-9: User views graphs comparing flare-ups vs. pollen/air quality;
-    can filter by product/time. Environmental data is currently mocked.
+    UC-9 (+UC-8 bridge): User views graphs comparing flare-ups and symptom logs
+    vs. pollen/air quality; can filter by product/symptom/time.
     """
     # Filters from query string
-    selected_product = request.args.get("product", "").strip() or None
+    selected_item = request.args.get("item", "").strip() or None
     start_date_str = request.args.get("start_date", "").strip() or None
     end_date_str = request.args.get("end_date", "").strip() or None
+    data_source = request.args.get("source", "all")  # all | products | symptoms
 
     start_date = parse_date(start_date_str) if start_date_str else None
     end_date = parse_date(end_date_str) if end_date_str else None
 
-    # Use allergic products as "flare-ups" (symptom history)
-    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.asc()).all()
-
-    # Join with environment data by date
     env_by_date = {e["date"]: e for e in MOCK_ENVIRONMENT_DATA}
     merged_records = []
 
-    for p in allergic_products:
-        if not p.scan_date:
-            continue
-        date_str = p.scan_date.date().strftime("%Y-%m-%d")
-        date_obj = parse_date(date_str)
-        if not date_obj:
-            continue
+    include_products = data_source in ("all", "products")
+    include_symptoms = data_source in ("all", "symptoms")
+    distinct_items = set()
 
-        # Filter by date range
-        if start_date and date_obj < start_date:
-            continue
-        if end_date and date_obj > end_date:
-            continue
+    if include_products:
+        allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.asc()).all()
+        for p in allergic_products:
+            if not p.scan_date:
+                continue
+            date_str = p.scan_date.date().strftime("%Y-%m-%d")
+            date_obj = parse_date(date_str)
+            if not date_obj:
+                continue
 
-        # Filter by product name
-        if selected_product and selected_product.lower() not in p.product_name.lower():
-            continue
+            # Filter by date range
+            if start_date and date_obj < start_date:
+                continue
+            if end_date and date_obj > end_date:
+                continue
 
-        env = env_by_date.get(date_str)
-        if env:
+            label = p.product_name
+            distinct_items.add(label)
+
+            # Filter by focused label
+            if selected_item and selected_item.lower() not in label.lower():
+                continue
+
+            env = env_by_date.get(date_str)
             merged_records.append({
                 "date": date_str,
-                "product": p.product_name,
+                "label": label,
+                "kind": "product",
                 "severity": severity_to_score(p.reaction_severity),
-                "pollen_index": env["pollen_index"],
-                "aqi": env["aqi"],
-            })
-        else:
-            # Exception path: Missing environmental data
-            merged_records.append({
-                "date": date_str,
-                "product": p.product_name,
-                "severity": severity_to_score(p.reaction_severity),
-                "pollen_index": None,
-                "aqi": None,
+                "pollen_index": env["pollen_index"] if env else None,
+                "aqi": env["aqi"] if env else None,
+                "env_status": "attached" if env else "missing",
             })
 
-    # Build distinct product list for simple filter dropdown
-    distinct_products = sorted({p.product_name for p in allergic_products})
+    if include_symptoms:
+        symptom_entries = SymptomEntry.query.filter_by(user_id=current_user.id).order_by(SymptomEntry.occurred_at.asc()).all()
+        for entry in symptom_entries:
+            if not entry.occurred_at:
+                continue
+            date_str = entry.occurred_at.date().strftime("%Y-%m-%d")
+            date_obj = parse_date(date_str)
+            if not date_obj:
+                continue
+
+            # Filter by date range
+            if start_date and date_obj < start_date:
+                continue
+            if end_date and date_obj > end_date:
+                continue
+
+            label = entry.triggers or entry.symptom
+            distinct_items.add(label)
+
+            if selected_item and selected_item.lower() not in label.lower():
+                continue
+
+            merged_records.append({
+                "date": date_str,
+                "label": label,
+                "kind": "symptom",
+                "severity": severity_to_score(entry.severity),
+                "pollen_index": entry.pollen_index,
+                "aqi": entry.aqi,
+                "env_status": entry.env_status or "pending_lookup",
+            })
+
+    merged_records.sort(key=lambda r: r["date"])
+    distinct_items = sorted(distinct_items)
 
     return render_template(
         'analytics.html',
         records=merged_records,
-        products=distinct_products,
-        selected_product=selected_product or "",
+        items=distinct_items,
+        selected_item=selected_item or "",
         start_date=start_date_str or "",
         end_date=end_date_str or "",
+        data_source=data_source,
     )
 
 @app.route('/allergens', methods=['GET', 'POST'])

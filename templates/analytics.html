@@ -1,71 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Allergy Analytics</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .analytics-container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 1.5rem;
-        }
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .filters label {
-            display: block;
-            font-size: 0.9rem;
-        }
-        .filters input, .filters select {
-            padding: 0.4rem;
-            min-width: 150px;
-        }
-        .btn {
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-        }
-        .chart-wrapper {
-            margin-bottom: 2rem;
-        }
-        .warning {
-            color: #b00020;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Analytics - Derme{% endblock %}
+{% block content %}
 <div class="analytics-container">
-    <h1>Seasonal Timeline & Heatmaps</h1>
-    <p>Compare your flare-ups against pollen and air quality over time.</p>
+    <h1>Symptoms & Flare Analytics</h1>
+    <p>Compare allergic products and symptom logs against pollen and air quality. Include offline-captured entries once they sync.</p>
 
     <!-- Filter form -->
     <form method="GET" class="filters">
         <div>
-            <label for="product">Product</label>
-            <select name="product" id="product">
-                <option value="">All products</option>
-                {% for p in products %}
-                    <option value="{{ p }}" {% if selected_product == p %}selected{% endif %}>{{ p }}</option>
+            <label for="source">Data Source</label>
+            <select name="source" id="source">
+                <option value="all" {% if data_source == 'all' %}selected{% endif %}>Symptoms + Products</option>
+                <option value="symptoms" {% if data_source == 'symptoms' %}selected{% endif %}>Symptoms only</option>
+                <option value="products" {% if data_source == 'products' %}selected{% endif %}>Products only</option>
+            </select>
+        </div>
+        <div>
+            <label for="item">Focus Item</label>
+            <select name="item" id="item">
+                <option value="">Anything</option>
+                {% for item in items %}
+                    <option value="{{ item }}" {% if selected_item == item %}selected{% endif %}>{{ item }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div>
             <label for="start_date">Start Date</label>
             <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
         </div>
-
         <div>
             <label for="end_date">End Date</label>
             <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
         </div>
-
         <div>
             <label>&nbsp;</label>
             <button type="submit" class="btn">Apply Filters</button>
@@ -76,46 +42,89 @@
         <p>No data found for the selected filters.</p>
     {% else %}
         <div class="chart-wrapper">
-            <h2>Timeline: Flare Severity vs Pollen & AQI</h2>
+            <h2>Timeline: Severity vs Pollen & AQI</h2>
             <canvas id="timelineChart"></canvas>
         </div>
 
         <div class="chart-wrapper">
-            <h2>Flare-up Intensity Heatmap</h2>
+            <h2>Flare/Symptom Intensity</h2>
             <canvas id="heatmapChart"></canvas>
         </div>
 
         <div>
             <button id="downloadTimeline" class="btn">Download Timeline PNG</button>
-            <button id="downloadHeatmap" class="btn">Download Heatmap PNG</button>
-            <p class="warning">
-                To export as PDF, use your browser’s “Print to PDF” option on this page.
-            </p>
+            <button id="downloadHeatmap" class="btn">Download Intensity PNG</button>
+            <p class="warning">Tip: To export as PDF, use your browser’s “Print to PDF” on this page.</p>
+        </div>
+
+        <div class="records-grid">
+            {% for record in records %}
+                <div class="record-card">
+                    <div class="record-header">
+                        <strong>{{ record.date }}</strong>
+                        <span class="chip chip-{{ 'symptom' if record.kind == 'symptom' else 'product' }}">{{ record.kind|title }}</span>
+                    </div>
+                    <div class="record-body">
+                        <div class="record-title">{{ record.label }}</div>
+                        <div class="record-meta">
+                            <span class="severity-badge severity-{{ 'moderate' if record.severity >=4 else 'mild' if record.severity <=2 else 'severe' }}">Score: {{ record.severity }}</span>
+                            <span class="chip">Pollen: {{ record.pollen_index if record.pollen_index is not none else '—' }}</span>
+                            <span class="chip">AQI: {{ record.aqi if record.aqi is not none else '—' }}</span>
+                            <span class="chip chip-muted">Env: {{ record.env_status }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
     {% endif %}
 </div>
 
+<!-- Lightweight styles specific to this page -->
+<style>
+.analytics-container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+.filters label { display: block; font-size: 0.9rem; }
+.filters input, .filters select { padding: 0.4rem; min-width: 150px; }
+.chart-wrapper { margin-bottom: 2rem; }
+.warning { color: #b00020; font-size: 0.9rem; }
+.records-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.record-card { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 0.9rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.record-title { font-weight: 600; margin-bottom: 0.35rem; }
+.record-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip { display: inline-block; padding: 0.2rem 0.5rem; background: #eef4f4; border-radius: 999px; font-size: 0.85rem; }
+.chip-symptom { background: #fdecea; color: #b33a3a; }
+.chip-product { background: #eaf4fd; color: #255c86; }
+.chip-muted { background: #f0f0f0; color: #555; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const records = {{ records|tojson|safe }};
 
     if (records.length > 0) {
-        const labels = records.map(r => r.date);
+        const labels = records.map(r => `${r.date} • ${r.label || r.kind}`);
         const severityData = records.map(r => r.severity);
         const pollenData = records.map(r => r.pollen_index);
         const aqiData = records.map(r => r.aqi);
+        const pointColors = records.map(r => r.kind === 'symptom' ? '#dc3545' : '#2c5f5d');
 
         // Timeline chart
         const ctxTimeline = document.getElementById("timelineChart").getContext("2d");
         const timelineChart = new Chart(ctxTimeline, {
             type: "line",
             data: {
-                labels: labels,
+                labels,
                 datasets: [
                     {
-                        label: "Flare Severity (1–5)",
+                        label: "Severity (1–5)",
                         data: severityData,
                         yAxisID: "y",
                         borderWidth: 2,
+                        borderColor: '#2c5f5d',
+                        backgroundColor: pointColors,
+                        pointBackgroundColor: pointColors,
+                        tension: 0.2
                     },
                     {
                         label: "Pollen Index",
@@ -123,12 +132,14 @@
                         yAxisID: "y1",
                         borderDash: [5, 5],
                         borderWidth: 2,
+                        spanGaps: true
                     },
                     {
                         label: "AQI",
                         data: aqiData,
                         yAxisID: "y1",
                         borderWidth: 2,
+                        spanGaps: true
                     }
                 ]
             },
@@ -138,7 +149,9 @@
                     y: {
                         type: "linear",
                         position: "left",
-                        title: { display: true, text: "Flare Severity" }
+                        title: { display: true, text: "Flare / Symptom Severity" },
+                        suggestedMin: 0,
+                        suggestedMax: 6
                     },
                     y1: {
                         type: "linear",
@@ -150,16 +163,17 @@
             }
         });
 
-        // Heatmap-ish bar chart
+        // Intensity bar chart
         const ctxHeatmap = document.getElementById("heatmapChart").getContext("2d");
         const heatmapChart = new Chart(ctxHeatmap, {
             type: "bar",
             data: {
-                labels: labels,
+                labels,
                 datasets: [
                     {
-                        label: "Flare Severity",
+                        label: "Severity",
                         data: severityData,
+                        backgroundColor: pointColors
                     }
                 ]
             },
@@ -186,10 +200,9 @@
         document.getElementById("downloadHeatmap").addEventListener("click", () => {
             const link = document.createElement("a");
             link.href = heatmapChart.toBase64Image();
-            link.download = "derme_heatmap.png";
+            link.download = "derme_intensity.png";
             link.click();
         });
     }
 </script>
-</body>
-</html>
+{% endblock %}

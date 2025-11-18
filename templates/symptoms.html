@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Symptoms & Triggers - Derme{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <h1>Log Symptoms & Triggers</h1>
+    <p>Capture symptoms, severity, timing, and triggers. We’ll correlate them to pollen and air quality automatically.</p>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>New Symptom Entry</h2>
+            <form method="POST" enctype="multipart/form-data" id="symptomForm">
+                <div class="form-row">
+                    <label for="symptom">Symptom</label>
+                    <textarea id="symptom" name="symptom" placeholder="e.g., Itchy rash on forearm" required></textarea>
+                </div>
+                <div class="form-grid">
+                    <div>
+                        <label for="severity">Severity</label>
+                        <select id="severity" name="severity">
+                            <option value="mild">Mild</option>
+                            <option value="moderate" selected>Moderate</option>
+                            <option value="severe">Severe</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="occurred_at">When</label>
+                        <input type="datetime-local" id="occurred_at" name="occurred_at">
+                    </div>
+                    <div>
+                        <label for="duration_minutes">Duration (minutes)</label>
+                        <input type="number" id="duration_minutes" name="duration_minutes" min="0" placeholder="Optional">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="triggers">Possible triggers (products, foods, locations)</label>
+                    <textarea id="triggers" name="triggers" placeholder="e.g., New moisturizer, grass exposure, gym workout"></textarea>
+                </div>
+                <div class="form-grid">
+                    <div>
+                        <label for="photo">Attach photo (optional)</label>
+                        <input type="file" id="photo" name="photo" accept="image/*">
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="offline_mode" name="offline_mode">
+                        <label for="offline_mode">Offline mode (queue, sync later)</label>
+                    </div>
+                </div>
+                <input type="hidden" name="quick_log" id="quick_log" value="0">
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary">Save Entry</button>
+                    <button type="button" class="btn btn-secondary" id="quickLogBtn">⚡ Quick-log now</button>
+                    <button type="button" class="btn btn-secondary" id="voiceInputBtn">🎙️ Voice input</button>
+                </div>
+                <p class="help-text">Offline? Toggle offline mode to queue the entry; tap “Sync queued entries” once you reconnect.</p>
+            </form>
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Recent Symptoms & Triggers</h2>
+            <div class="action-buttons" style="gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                <form method="POST" action="{{ url_for('sync_symptom_entries') }}">
+                    <button class="btn btn-secondary" type="submit" {% if offline_pending == 0 %}disabled{% endif %}>🔄 Sync queued entries{% if offline_pending %} ({{ offline_pending }}){% endif %}</button>
+                </form>
+                <a class="btn btn-secondary" href="{{ url_for('analytics', source='symptoms') }}">📊 View trends</a>
+            </div>
+            {% if entries %}
+                <div class="ingredient-list">
+                    {% for entry in entries %}
+                        <div class="ingredient-item" style="align-items: flex-start;">
+                            <div style="flex:1;">
+                                <div class="ingredient-name">{{ entry.symptom }}</div>
+                                <div class="meta-line">{{ entry.occurred_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                                {% if entry.triggers %}<div class="meta-line"><strong>Triggers:</strong> {{ entry.triggers }}</div>{% endif %}
+                                {% if entry.duration_minutes %}<div class="meta-line"><strong>Duration:</strong> {{ entry.duration_minutes }} min</div>{% endif %}
+                                <div class="meta-line">
+                                    <span class="chip">Pollen: {{ entry.pollen_index if entry.pollen_index is not none else '—' }}</span>
+                                    <span class="chip">AQI: {{ entry.aqi if entry.aqi is not none else '—' }}</span>
+                                    <span class="chip chip-muted">{{ entry.env_status or 'pending' }}</span>
+                                    {% if entry.env_source %}<span class="chip chip-muted">{{ entry.env_source }}</span>{% endif %}
+                                </div>
+                                {% if entry.sync_error %}<div class="meta-line" style="color:#b00020;">{{ entry.sync_error }}</div>{% endif %}
+                                {% if entry.photo_path %}
+                                    <div class="meta-line"><a href="{{ url_for('static', filename=entry.photo_path) }}" target="_blank">View photo</a></div>
+                                {% endif %}
+                            </div>
+                            <span class="severity-badge severity-{{ entry.severity }}">{{ entry.severity }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">No symptoms logged yet. Use the quick-log button to add one fast.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    const quickBtn = document.getElementById('quickLogBtn');
+    const form = document.getElementById('symptomForm');
+    const quickFlag = document.getElementById('quick_log');
+    const occurredAt = document.getElementById('occurred_at');
+    const severitySelect = document.getElementById('severity');
+    const symptomInput = document.getElementById('symptom');
+
+    quickBtn.addEventListener('click', () => {
+        // Minimal friction: stamp now and submit.
+        const now = new Date();
+        occurredAt.value = now.toISOString().slice(0, 16);
+        severitySelect.value = 'moderate';
+        quickFlag.value = '1';
+        if (!symptomInput.value) {
+            symptomInput.value = 'Quick symptom log';
+        }
+        form.submit();
+    });
+
+    const voiceBtn = document.getElementById('voiceInputBtn');
+    voiceBtn.addEventListener('click', () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Voice input not supported in this browser.');
+            return;
+        }
+        const recognizer = new SpeechRecognition();
+        recognizer.lang = 'en-US';
+        recognizer.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            symptomInput.value = transcript;
+        };
+        recognizer.start();
+    });
+</script>
+{% endblock %}
