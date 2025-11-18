@@ -16,6 +16,13 @@
                 <a href="{{ url_for('manage_allergens') }}" class="btn btn-secondary">
                     ⚠️ Manage Allergens
                 </a>
+                <!-- NEW: UC-9 + UC-14 shortcuts -->
+                <a href="{{ url_for('analytics') }}" class="btn btn-secondary">
+                    📊 View Seasonal Analytics
+                </a>
+                <a href="{{ url_for('find_dermatologist') }}" class="btn btn-secondary">
+                    🩺 Find Dermatologist
+                </a>
             </div>
         </div>
         
@@ -106,9 +113,15 @@
         </div>
     </div>
     
+    <!-- Optional: shout out your new features clearly -->
     <div class="info-card">
         <h3>💡 Tip</h3>
         <p>The more products you scan and categorize (safe vs allergic), the better the app can identify patterns and suggest potential allergens specific to you!</p>
+        <p style="margin-top:0.75rem;">
+            You can also explore:
+            <a href="{{ url_for('analytics') }}">Seasonal Analytics</a> to see your flare-ups vs. pollen & air quality,
+            and <a href="{{ url_for('find_dermatologist') }}">Find Dermatologist</a> to locate nearby specialists.
+        </p>
     </div>
 </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -276,6 +277,71 @@ def analyze_ingredients(ingredients_list, user_id):
                 results['safe_ingredients'].append(ingredient)
     
     return results
+
+# -------------------------------------------------------------------
+# UC-9 & UC-14 helpers and mock data
+# -------------------------------------------------------------------
+
+def parse_date(date_str):
+    """Helper to safely parse YYYY-MM-DD strings into datetime objects."""
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except Exception:
+        return None
+
+# Mock environmental data for pollen / air quality (UC-9).
+# In a real system this would come from external APIs.
+MOCK_ENVIRONMENT_DATA = [
+    {"date": "2025-09-01", "pollen_index": 8.2, "aqi": 65},
+    {"date": "2025-09-03", "pollen_index": 5.0, "aqi": 90},
+    {"date": "2025-09-10", "pollen_index": 9.1, "aqi": 55},
+    {"date": "2025-10-01", "pollen_index": 3.5, "aqi": 40},
+]
+
+# Mock dermatologist directory (UC-14).
+# In a real system this would be populated from a Maps / provider API.
+MOCK_DERMATOLOGISTS = [
+    {
+        "name": "Downtown Skin Care Clinic",
+        "address": "123 Peachtree St, Atlanta, GA",
+        "distance_km": 2.1,
+        "rating": 4.7,
+        "insurance": ["Aetna", "BlueCross", "Self-pay"],
+        "phone": "+1-404-555-0101",
+        "telederm": True
+    },
+    {
+        "name": "Midtown Allergy & Derm",
+        "address": "456 Midtown Ave, Atlanta, GA",
+        "distance_km": 5.4,
+        "rating": 4.3,
+        "insurance": ["United", "Kaiser"],
+        "phone": "+1-404-555-0112",
+        "telederm": False
+    },
+    {
+        "name": "Peachtree Dermatology Group",
+        "address": "789 Ponce de Leon, Atlanta, GA",
+        "distance_km": 8.0,
+        "rating": 4.9,
+        "insurance": ["Aetna", "United", "Self-pay"],
+        "phone": "+1-404-555-0199",
+        "telederm": True
+    },
+]
+
+def severity_to_score(severity):
+    """Map textual reaction severity to numeric score for charts."""
+    if not severity:
+        return 2
+    s = severity.lower()
+    if s == "mild":
+        return 2
+    if s == "moderate":
+        return 3
+    if s == "severe":
+        return 5
+    return 2  # default / unknown
 
 # Routes
 @app.context_processor
@@ -649,6 +715,80 @@ def dashboard():
                          allergic_products=allergic_products,
                          potential_allergens=potential_allergens)
 
+# -------------------------------------------------------------------
+# UC-9: View Seasonal Timeline & Heatmaps
+# -------------------------------------------------------------------
+@app.route('/analytics', methods=['GET'])
+@login_required
+def analytics():
+    """
+    UC-9: User views graphs comparing flare-ups vs. pollen/air quality;
+    can filter by product/time. Environmental data is currently mocked.
+    """
+    # Filters from query string
+    selected_product = request.args.get("product", "").strip() or None
+    start_date_str = request.args.get("start_date", "").strip() or None
+    end_date_str = request.args.get("end_date", "").strip() or None
+
+    start_date = parse_date(start_date_str) if start_date_str else None
+    end_date = parse_date(end_date_str) if end_date_str else None
+
+    # Use allergic products as "flare-ups" (symptom history)
+    allergic_products = AllergicProduct.query.filter_by(user_id=current_user.id).order_by(AllergicProduct.scan_date.asc()).all()
+
+    # Join with environment data by date
+    env_by_date = {e["date"]: e for e in MOCK_ENVIRONMENT_DATA}
+    merged_records = []
+
+    for p in allergic_products:
+        if not p.scan_date:
+            continue
+        date_str = p.scan_date.date().strftime("%Y-%m-%d")
+        date_obj = parse_date(date_str)
+        if not date_obj:
+            continue
+
+        # Filter by date range
+        if start_date and date_obj < start_date:
+            continue
+        if end_date and date_obj > end_date:
+            continue
+
+        # Filter by product name
+        if selected_product and selected_product.lower() not in p.product_name.lower():
+            continue
+
+        env = env_by_date.get(date_str)
+        if env:
+            merged_records.append({
+                "date": date_str,
+                "product": p.product_name,
+                "severity": severity_to_score(p.reaction_severity),
+                "pollen_index": env["pollen_index"],
+                "aqi": env["aqi"],
+            })
+        else:
+            # Exception path: Missing environmental data
+            merged_records.append({
+                "date": date_str,
+                "product": p.product_name,
+                "severity": severity_to_score(p.reaction_severity),
+                "pollen_index": None,
+                "aqi": None,
+            })
+
+    # Build distinct product list for simple filter dropdown
+    distinct_products = sorted({p.product_name for p in allergic_products})
+
+    return render_template(
+        'analytics.html',
+        records=merged_records,
+        products=distinct_products,
+        selected_product=selected_product or "",
+        start_date=start_date_str or "",
+        end_date=end_date_str or "",
+    )
+
 @app.route('/allergens', methods=['GET', 'POST'])
 @login_required
 def manage_allergens():
@@ -877,6 +1017,64 @@ def remove_potential_allergen(ingredient_name):
     
     return redirect(url_for('potential_allergens_page'))
 
+# -------------------------------------------------------------------
+# UC-14: Find Dermatologist
+# -------------------------------------------------------------------
+@app.route('/find-dermatologist', methods=['GET'])
+@login_required
+def find_dermatologist():
+    """
+    UC-14: The user searches nearby dermatologists; filters by insurance,
+    rating, distance; launches directions or calls. Tele-derm link if available.
+    """
+    location_query = request.args.get("location", "").strip()
+
+    insurance_filter = request.args.get("insurance", "").strip()
+    min_rating = request.args.get("min_rating", "").strip()
+    max_distance = request.args.get("max_distance", "").strip()
+    telederm_only = request.args.get("telederm_only", "") == "on"
+
+    try:
+        min_rating = float(min_rating) if min_rating else None
+    except ValueError:
+        min_rating = None
+
+    try:
+        max_distance = float(max_distance) if max_distance else None
+    except ValueError:
+        max_distance = None
+
+    # Apply filters over mock directory
+    results = []
+    for d in MOCK_DERMATOLOGISTS:
+        if insurance_filter and insurance_filter not in d["insurance"]:
+            continue
+        if min_rating is not None and d["rating"] < min_rating:
+            continue
+        if max_distance is not None and d["distance_km"] > max_distance:
+            continue
+        if telederm_only and not d["telederm"]:
+            continue
+        results.append(d)
+
+    # Exception path: location permission / not provided
+    location_warning = None
+    if not location_query:
+        location_warning = "Location is not set. Results are based on sample data near Atlanta."
+
+    all_insurances = sorted({ins for d in MOCK_DERMATOLOGISTS for ins in d["insurance"]})
+
+    return render_template(
+        'find_dermatologist.html',
+        location_query=location_query,
+        location_warning=location_warning,
+        providers=results,
+        insurance_options=all_insurances,
+        insurance_filter=insurance_filter,
+        min_rating_value=min_rating if min_rating is not None else "",
+        max_distance_value=max_distance if max_distance is not None else "",
+        telederm_only=telederm_only,
+    )
 
 def load_allergens_from_json():
     """Load allergens from the allergens.json file into the database"""

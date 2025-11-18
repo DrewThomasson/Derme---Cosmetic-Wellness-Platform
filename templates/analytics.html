@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Allergy Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .analytics-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .filters label {
+            display: block;
+            font-size: 0.9rem;
+        }
+        .filters input, .filters select {
+            padding: 0.4rem;
+            min-width: 150px;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        .chart-wrapper {
+            margin-bottom: 2rem;
+        }
+        .warning {
+            color: #b00020;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+<div class="analytics-container">
+    <h1>Seasonal Timeline & Heatmaps</h1>
+    <p>Compare your flare-ups against pollen and air quality over time.</p>
+
+    <!-- Filter form -->
+    <form method="GET" class="filters">
+        <div>
+            <label for="product">Product</label>
+            <select name="product" id="product">
+                <option value="">All products</option>
+                {% for p in products %}
+                    <option value="{{ p }}" {% if selected_product == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="start_date">Start Date</label>
+            <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
+        </div>
+
+        <div>
+            <label for="end_date">End Date</label>
+            <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
+        </div>
+
+        <div>
+            <label>&nbsp;</label>
+            <button type="submit" class="btn">Apply Filters</button>
+        </div>
+    </form>
+
+    {% if not records %}
+        <p>No data found for the selected filters.</p>
+    {% else %}
+        <div class="chart-wrapper">
+            <h2>Timeline: Flare Severity vs Pollen & AQI</h2>
+            <canvas id="timelineChart"></canvas>
+        </div>
+
+        <div class="chart-wrapper">
+            <h2>Flare-up Intensity Heatmap</h2>
+            <canvas id="heatmapChart"></canvas>
+        </div>
+
+        <div>
+            <button id="downloadTimeline" class="btn">Download Timeline PNG</button>
+            <button id="downloadHeatmap" class="btn">Download Heatmap PNG</button>
+            <p class="warning">
+                To export as PDF, use your browser’s “Print to PDF” option on this page.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    const records = {{ records|tojson|safe }};
+
+    if (records.length > 0) {
+        const labels = records.map(r => r.date);
+        const severityData = records.map(r => r.severity);
+        const pollenData = records.map(r => r.pollen_index);
+        const aqiData = records.map(r => r.aqi);
+
+        // Timeline chart
+        const ctxTimeline = document.getElementById("timelineChart").getContext("2d");
+        const timelineChart = new Chart(ctxTimeline, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Flare Severity (1–5)",
+                        data: severityData,
+                        yAxisID: "y",
+                        borderWidth: 2,
+                    },
+                    {
+                        label: "Pollen Index",
+                        data: pollenData,
+                        yAxisID: "y1",
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                    },
+                    {
+                        label: "AQI",
+                        data: aqiData,
+                        yAxisID: "y1",
+                        borderWidth: 2,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        type: "linear",
+                        position: "left",
+                        title: { display: true, text: "Flare Severity" }
+                    },
+                    y1: {
+                        type: "linear",
+                        position: "right",
+                        title: { display: true, text: "Pollen / AQI" },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+
+        // Heatmap-ish bar chart
+        const ctxHeatmap = document.getElementById("heatmapChart").getContext("2d");
+        const heatmapChart = new Chart(ctxHeatmap, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Flare Severity",
+                        data: severityData,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 5,
+                        title: { display: true, text: "Severity" }
+                    }
+                }
+            }
+        });
+
+        // PNG exports
+        document.getElementById("downloadTimeline").addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = timelineChart.toBase64Image();
+            link.download = "derme_timeline.png";
+            link.click();
+        });
+
+        document.getElementById("downloadHeatmap").addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = heatmapChart.toBase64Image();
+            link.download = "derme_heatmap.png";
+            link.click();
+        });
+    }
+</script>
+</body>
+</html>
