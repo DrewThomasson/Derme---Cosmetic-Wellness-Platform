@@ -86,6 +86,19 @@ class AllergicProduct(db.Model):
     ingredients = db.Column(db.Text, nullable=False)
     scan_date = db.Column(db.DateTime, default=db.func.current_timestamp())
     reaction_severity = db.Column(db.String(50), default='unknown')  # mild, moderate, severe, unknown
+    explanations = db.relationship('AllergenExplanation', backref='allergic_product', lazy=True, cascade='all, delete-orphan')
+
+class AllergenExplanation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    allergic_product_id = db.Column(db.Integer, db.ForeignKey('allergic_product.id'), nullable=False)
+    ingredient_name = db.Column(db.String(200), nullable=False)
+    severity_context = db.Column(db.String(50))
+    source = db.Column(db.String(50))  # knowledge_base | personal | community | analysis
+    explanation = db.Column(db.Text)
+    community_summary = db.Column(db.Text)
+    knowledge_missing = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 class IngredientSynonym(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -196,6 +209,71 @@ def detect_potential_allergens(user_id):
     result.sort(key=lambda x: x['count'], reverse=True)
     return result
 
+def summarize_community_reactions(ingredient_name):
+    """Summarize community-reported reactions for an ingredient."""
+    reports = AllergicProduct.query.filter(AllergicProduct.ingredients.ilike(f"%{ingredient_name}%")).all()
+    total = len(reports)
+    if total == 0:
+        return None
+    
+    severity_counts = {'mild': 0, 'moderate': 0, 'severe': 0, 'unknown': 0}
+    for report in reports:
+        sev = (report.reaction_severity or 'unknown').lower()
+        if sev not in severity_counts:
+            sev = 'unknown'
+        severity_counts[sev] += 1
+    
+    # Pick the most common severity as context
+    top_severity = max(severity_counts, key=severity_counts.get)
+    return {
+        'total': total,
+        'by_severity': severity_counts,
+        'top_severity': top_severity
+    }
+
+def build_allergen_explanation(ingredient, severity='unknown', known=None, reason=None, is_user_allergen=False):
+    """Construct a structured explanation for why an ingredient is risky."""
+    explanation_parts = []
+    source = 'knowledge_base' if known else 'analysis'
+    knowledge_missing = not bool(known)
+    
+    if is_user_allergen:
+        source = 'personal'
+        explanation_parts.append(f"You marked this ingredient as an allergen (severity: {severity}).")
+    
+    if reason:
+        explanation_parts.append(reason)
+    
+    if known:
+        if known.where_found:
+            explanation_parts.append(f"Commonly found in: {known.where_found}.")
+        if known.clinician_note:
+            explanation_parts.append(f"Clinical note: {known.clinician_note}")
+        if known.product_categories:
+            explanation_parts.append("Product categories: " + (known.product_categories or ""))
+    
+    community = summarize_community_reactions(ingredient)
+    community_summary = None
+    if community:
+        source = source if known or is_user_allergen else 'community'
+        breakdown = community['by_severity']
+        community_summary = (
+            f"{community['total']} community reports; most flagged as {community['top_severity']} "
+            f"(mild: {breakdown['mild']}, moderate: {breakdown['moderate']}, severe: {breakdown['severe']})."
+        )
+    
+    if not explanation_parts and not community_summary:
+        explanation_parts.append("No knowledge base entry found for this ingredient.")
+    
+    return {
+        'ingredient': ingredient,
+        'severity_context': severity,
+        'source': source,
+        'explanation': ' '.join(explanation_parts).strip(),
+        'community_summary': community_summary,
+        'knowledge_missing': knowledge_missing
+    }
+
 def analyze_ingredients(ingredients_list, user_id):
     """Analyze ingredients against user allergens and known allergen database"""
     user_allergens = UserAllergen.query.filter_by(user_id=user_id).all()
@@ -211,7 +289,8 @@ def analyze_ingredients(ingredients_list, user_id):
         'safe_ingredients': [],
         'unknown_ingredients': [],
         'warnings': [],
-        'potential_allergens': []
+        'potential_allergens': [],
+        'explanations': []
     }
     
     # Get potential allergens from cross-referencing
@@ -237,6 +316,15 @@ def analyze_ingredients(ingredients_list, user_id):
                     'name': ingredient,
                     'severity': severity
                 })
+                results['explanations'].append(
+                    build_allergen_explanation(
+                        ingredient,
+                        severity=severity,
+                        known=None,
+                        reason="This ingredient matches your personal allergen list.",
+                        is_user_allergen=True
+                    )
+                )
                 found_allergen = True
                 break
         
@@ -247,6 +335,14 @@ def analyze_ingredients(ingredients_list, user_id):
                     'name': ingredient,
                     'reason': 'Found in allergic products but not in safe products'
                 })
+                results['explanations'].append(
+                    build_allergen_explanation(
+                        ingredient,
+                        severity='potential',
+                        known=None,
+                        reason='Detected only in products you reacted to, not in safe products.'
+                    )
+                )
                 continue
             
             # Check against known allergen database
@@ -273,6 +369,14 @@ def analyze_ingredients(ingredients_list, user_id):
                     'clinician_note': known.clinician_note,
                     'url': known.url
                 })
+                results['explanations'].append(
+                    build_allergen_explanation(
+                        ingredient,
+                        severity='warning',
+                        known=known,
+                        reason="This ingredient appears in the common allergen database."
+                    )
+                )
             else:
                 results['safe_ingredients'].append(ingredient)
     
@@ -913,6 +1017,56 @@ def save_product():
     
     db.session.add(product)
     db.session.commit()
+    
+    # Save allergen explanations with the scan record for allergic products
+    if product_type == 'allergic':
+        # 1) Persist explanations with the scan
+        explanations = results.get('analysis', {}).get('explanations', [])
+        for expl in explanations:
+            exp_record = AllergenExplanation(
+                user_id=current_user.id,
+                allergic_product_id=product.id,
+                ingredient_name=expl.get('ingredient'),
+                severity_context=expl.get('severity_context'),
+                source=expl.get('source'),
+                explanation=expl.get('explanation'),
+                community_summary=expl.get('community_summary'),
+                knowledge_missing=expl.get('knowledge_missing', False)
+            )
+            db.session.add(exp_record)
+        
+        # 2) Auto-add risky ingredients to the user's allergen list so future scans flag them
+        analysis = results.get('analysis', {})
+        risky_ingredients = []
+        risky_ingredients.extend([a.get('name') for a in analysis.get('allergens_found', [])])
+        risky_ingredients.extend([w.get('name') for w in analysis.get('warnings', [])])
+        risky_ingredients.extend([p.get('name') for p in analysis.get('potential_allergens', [])])
+        # Deduplicate while preserving originals
+        seen = set()
+        risky_unique = []
+        for ing in risky_ingredients:
+            if not ing:
+                continue
+            norm = normalize_ingredient(ing)
+            if norm in seen:
+                continue
+            seen.add(norm)
+            risky_unique.append(ing)
+        
+        # Fetch existing user allergens to avoid duplicates
+        existing = UserAllergen.query.filter_by(user_id=current_user.id).all()
+        existing_norm = {normalize_ingredient(a.ingredient_name) for a in existing}
+        for ing in risky_unique:
+            if normalize_ingredient(ing) in existing_norm:
+                continue
+            new_allergen = UserAllergen(
+                user_id=current_user.id,
+                ingredient_name=ing,
+                severity=severity  # Use selected reaction severity for context
+            )
+            db.session.add(new_allergen)
+        
+        db.session.commit()
     
     return redirect(url_for('dashboard'))
 
