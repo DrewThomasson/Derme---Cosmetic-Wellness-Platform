@@ -10,6 +10,7 @@ import pytesseract
 from PIL import Image
 import io
 import re
+from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
