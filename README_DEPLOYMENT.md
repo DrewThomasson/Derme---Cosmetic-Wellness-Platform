@@ -3,12 +3,7 @@
 ## Important: Auto-Login Behavior
 
 ### HuggingFace Spaces Deployment
-When deployed to HuggingFace Spaces, the application automatically logs in users with a demo account. **No login page will be shown** - users are taken directly to the dashboard for immediate testing.
-
-- ✅ **Auto-login enabled**: Detects HuggingFace environment via `SPACE_ID` environment variable
-- 🔒 **Login/Register hidden**: Authentication pages and buttons are not displayed
-- 👤 **Demo user**: Automatically logged in as `demo_user` with pre-populated sample allergens
-- 🚫 **No logout**: Logout button is hidden to maintain demo experience
+When deployed to HuggingFace Spaces, the application functions identically to a local deployment. Users can register and login using the standard authentication flow.
 
 ### Local Development
 When running locally, the full authentication system is available:
@@ -86,7 +81,7 @@ When running locally, the full authentication system is available:
 4. **Space Configuration**
    The app.py is already configured to run on port 7860, which is the default port for HuggingFace Spaces.
    
-   **Note**: Once deployed, the application will automatically detect it's running on HuggingFace Spaces and enable auto-login mode. Users will be taken directly to the dashboard without seeing any login pages.
+   **Note**: Once deployed, the application will run on port 7860.
 
 ### Environment Variables (Optional)
 

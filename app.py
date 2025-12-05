@@ -20,9 +20,6 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SYMPTOM_UPLOAD_FOLDER'] = os.path.join(app.config['UPLOAD_FOLDER'], 'symptoms')
 
-# Detect if running on HuggingFace Spaces
-RUNNING_ON_HUGGINGFACE = os.environ.get('SPACE_ID') is not None
-
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['SYMPTOM_UPLOAD_FOLDER'], exist_ok=True)
@@ -426,48 +423,6 @@ def attach_environment_to_entry(entry):
         entry.sync_error = "No environmental data available for that date."
 
 # Routes
-@app.context_processor
-def inject_globals():
-    """Make global variables available to all templates"""
-    return {
-        'running_on_huggingface': RUNNING_ON_HUGGINGFACE
-    }
-
-@app.before_request
-def auto_login_on_huggingface():
-    """Automatically log in demo user when running on HuggingFace Spaces"""
-    if RUNNING_ON_HUGGINGFACE and not current_user.is_authenticated:
-        # Skip auto-login for static files
-        if request.endpoint and 'static' not in request.endpoint:
-            # Get or create demo user
-            demo_user = User.query.filter_by(username='demo_user').first()
-            
-            if not demo_user:
-                # Create demo user if doesn't exist
-                demo_user = User(username='demo_user', email='demo@derme-app.com')
-                demo_user.set_password('demo123')
-                db.session.add(demo_user)
-                db.session.commit()
-                
-                # Add some sample allergens for demo
-                sample_allergens = [
-                    ('Fragrance', 'severe'),
-                    ('Parabens', 'moderate'),
-                    ('SLS', 'mild')
-                ]
-                
-                for allergen_name, severity in sample_allergens:
-                    allergen = UserAllergen(
-                        user_id=demo_user.id,
-                        ingredient_name=allergen_name,
-                        severity=severity
-                    )
-                    db.session.add(allergen)
-                
-                db.session.commit()
-            
-            # Log in the demo user
-            login_user(demo_user, remember=True)
 
 @app.route('/')
 def index():

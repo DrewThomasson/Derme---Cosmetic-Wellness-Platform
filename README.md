@@ -80,6 +80,16 @@ This enables the app to detect potential allergens in cosmetic products even whe
 
 ## Installation
 
+### Easy Docker installation and run
+
+### 
+```bash
+docker compose up --build
+```
+This server will be hosted on `http://localhost:7860/`
+
+## Local installation
+
 ### Prerequisites
 
 * Miniconda or Anaconda installed on your system
@@ -109,15 +119,6 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
-
----
-
-## Demo
-
-Try out our live demo on Hugging Face Spaces:  
-[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Demo-yellow?style=flat&logo=huggingface)](https://huggingface.co/spaces/drewThomasson/DermTest)
-[![Free Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1TjPwaykftmQ6XpG7HKbmKlZyYlb65nLI?usp=sharing)
-
 ---
 
 ## Team Members
