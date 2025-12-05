@@ -1,0 +1,47 @@
+# Test Documentation
+
+## 1. Test Case Scripts
+
+### Test Case 1: Database Schema Migration
+| Field | Details |
+| :--- | :--- |
+| **Test ID** | **TC-001** |
+| **Purpose of Test** | Verify that the application correctly handles existing databases from previous versions and automatically migrates the schema to support new features (Reference: [MIGRATION_FIX.md](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/MIGRATION_FIX.md)). |
+| **Test Environment** | Local development environment (macOS/Linux). <br> **Pre-condition**: An outdated `derme.db` file (v1.0 schema) is present in the `instance/` directory. |
+| **Test Steps** | 1. Place a v1.0 `derme.db` file (missing `where_found` column) in the `instance/` folder.<br>2. Open a terminal.<br>3. Run `python app.py`.<br>4. Observe terminal output for migration logs.<br>5. Verify application startup. |
+| **Test Input** | Execution command: `python app.py` |
+| **Expected Result** | Terminal shows "Migrating database schema...", "Added column: where_found", and finally "Database migration completed successfully". The app starts without crashing. |
+| **Likely Problems/Bugs Revealed** | `sqlite3.OperationalError: no such column` if migration fails or is not triggered. |
+
+### Test Case 2: Allergen Detection Accuracy
+| Field | Details |
+| :--- | :--- |
+| **Test ID** | **TC-002** |
+| **Purpose of Test** | Verify that the ingredient analysis engine correctly identifies allergens using synonyms and trade names (Reference: [IMPLEMENTATION_SUMMARY.md](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/IMPLEMENTATION_SUMMARY.md)). |
+| **Test Environment** | Web Browser (Chrome/Safari). Application running locally. |
+| **Test Steps** | 1. Navigate to the "Analyze" page.<br>2. In the text area, enter a list of ingredients containing synonyms (e.g., "Aqua, Parfum, CI 77891").<br>3. Click "Analyze".<br>4. Review the results page. |
+| **Test Input** | Ingredient String: `"Aqua, Parfum, Methylisothiazolinone"` |
+| **Expected Result** | "Parfum" should be identified as "Fragrance" (Warning). "Methylisothiazolinone" should be flagged as a known allergen. "Aqua" should be marked as safe. |
+| **Likely Problems/Bugs Revealed** | False negatives (allergens not detected) if the synonym database is incomplete or matching logic is too strict. |
+
+### Test Case 3: User Password Recovery
+| Field | Details |
+| :--- | :--- |
+| **Test ID** | **TC-003** |
+| **Purpose of Test** | Verify the functionality of the "Forgot Password" flow to ensure users can recover access. |
+| **Test Environment** | Web Browser. Application running locally. |
+| **Test Steps** | 1. Navigate to the Login page.<br>2. Click "Forgot Password".<br>3. Enter a registered username or email.<br>4. Answer the security questions (e.g., "What was the name of your first pet?").<br>5. Enter a new password.<br>6. Attempt login with new password. |
+| **Test Input** | Username: `testuser` |
+| **Expected Result** | User is prompted for security questions. Upon correct answers, password reset form appears. Password update is successful. User can log in with new password. |
+| **Likely Problems/Bugs Revealed** | Incorrect answers not being rejected, session expiry issues, or inability to update the database record. |
+
+---
+
+## 2. Bug Table
+
+| Bug ID | The test uncovered the bug | Description of the bug | Action taken to fix the bug |
+| :--- | :--- | :--- | :--- |
+| **BUG-001** | **TC-001** | `sqlite3.OperationalError: no such column: known_allergen.where_found`. The app crashed on startup when using an existing database because the code expected new columns that didn't exist in the old schema. | Implemented an automatic [migrate_database()](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app.py#1367-1442) function in [app.py](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app.py) that detects missing columns and executes `ALTER TABLE` SQL commands to add them on startup. |
+| **BUG-002** | **TC-002** | "Parfum" and other common ingredient synonyms were not being detected as allergens, leading to false safety assurances for users. | Integrated the Contact Dermatitis Institute database. Added [load_allergens_from_json()](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app.py#1298-1366) to populate the system with 496 allergens and over 14,000 synonyms. |
+| **BUG-003** | **TC-003** | Users who forgot their passwords had no way to recover their accounts; the feature was missing entirely. | Implemented a secure "Forgot Password" flow using Security Questions (to avoid email dependency), including answer hashing and a multi-step verification process. |
+| **BUG-004** | **Deployment Test** | `ModuleNotFoundError` on Google Colab and other environments due to inconsistent package versions and missing dependencies. | Standardized [requirements.txt](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/requirements.txt) by removing strict version pinning and created a dedicated `conda` environment setup script. |

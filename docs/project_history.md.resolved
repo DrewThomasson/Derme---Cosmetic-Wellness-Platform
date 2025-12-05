@@ -1,0 +1,74 @@
+# Project History: Issues & Solutions
+
+This document outlines the major challenges encountered during the development of the Derme Cosmetic Wellness Platform and the solutions implemented to resolve them.
+
+## 1. Database Schema Evolution & Migration
+
+### **Issue: Breaking Schema Changes**
+As the application evolved, we needed to add more detailed information to the `KnownAllergen` model, specifically new columns for `where_found`, `product_categories`, `clinician_note`, and `url`.
+*   **Problem:** Users with existing databases encountered `sqlite3.OperationalError: no such column` because SQLAlchemy's `db.create_all()` does not automatically alter existing tables to match new models.
+*   **Impact:** This would crash the application for any user upgrading from a previous version without deleting their data.
+
+### **Solution: Automatic Migration System**
+We implemented a custom, robust migration system in [app.py](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app.py).
+*   **Mechanism:** Created a `migrate_database()` function that runs on startup. It checks for the existence of specific columns and, if missing, executes raw SQL `ALTER TABLE` commands to add them.
+*   **Benefit:** This ensures backward compatibility, preserves all existing user data, and requires no manual intervention from the user.
+*   **Reference:** [MIGRATION_FIX.md](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/MIGRATION_FIX.md), Commit `c0b55be`.
+
+## 2. Allergen Database Integration
+
+### **Issue: Limited Data Source**
+The initial prototype lacked a comprehensive database of allergens, limiting the effectiveness of the ingredient analysis feature.
+
+### **Solution: Contact Dermatitis Institute Integration**
+We integrated a massive dataset from the Contact Dermatitis Institute.
+*   **Action:** Scraped and structured data for 496 common allergens.
+*   **Enhancement:** Implemented `load_allergens_from_json()` to automatically populate the database with these allergens and over 14,000 synonyms/brand names.
+*   **Benefit:** significantly improved the accuracy and utility of the allergen detection feature.
+*   **Reference:** [IMPLEMENTATION_SUMMARY.md](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/IMPLEMENTATION_SUMMARY.md), Commit `d2925ff`.
+
+## 3. User Authentication & Security
+
+### **Issue: Basic Authentication Gaps**
+The initial system needed more robust user validation and a way for users to recover lost access.
+
+### **Solution: Enhanced Auth Features**
+*   **Terminal Login Validation:** Added scripts to validate user credentials securely via the terminal for testing/admin purposes (Commit `56b11fb`).
+*   **Forgot Password Flow:** Implemented a complete "Forgot Password" functionality to allow users to reset their credentials securely (Commit `5e70576`).
+
+## 4. Feature Expansion & Modularity
+
+### **Issue: Monolithic Structure**
+As features grew (Emergency Contacts, Forums), keeping everything in a single file became unmanageable.
+
+### **Solution: Modular Route Handlers**
+We adopted a modular architecture by splitting routes into separate files.
+*   **Action:** Created [app_emergency_routes_Version2.py](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app_emergency_routes_Version2.py) and [app_forum_routes_Version2.py](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/app_forum_routes_Version2.py).
+*   **Benefit:** Improved code maintainability and readability, allowing for easier debugging and feature addition (Commit `e22f752`).
+
+## 5. Deployment & Environment Consistency
+
+### **Issue: Environment Mismatches**
+Running the application across different environments (local, Colab, various OSs) led to dependency issues.
+
+### **Solution: Standardized Environment Config**
+*   **Action:** Refined [requirements.txt](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/requirements.txt) to remove strict version pinning where unnecessary (Commit `ff89dda`) and updated `conda` environment setup (Commit `4764872`).
+*   **Action:** Added [.gitignore](file:///Users/drew/Derme---Cosmetic-Wellness-Platform/.gitignore) to prevent build artifacts and local database instances from cluttering the repository (Commit `0b792ea`).
+
+## 6. Continuous Integration
+
+### **Issue: Manual Testing Overhead**
+Ensuring that new changes didn't break existing functionality required manual testing.
+
+### **Solution: GitHub Actions Workflow**
+*   **Action:** Implemented and renamed CI workflows (e.g., `.github/workflows/test.yml`) to automate testing on push/pull requests.
+*   **Benefit:** Provides immediate feedback on code stability (Commit `fd27828`).
+
+## 7. Symptom Tracking & Analytics
+
+### **Issue: Lack of User Insights**
+Users needed a way to correlate environmental factors with their skin conditions.
+
+### **Solution: Advanced Symptom Logging**
+*   **Action:** Added symptom logging features that include environmental enrichment and analytics.
+*   **Benefit:** Allows users to track flare-ups and potentially identify triggers (Commit `6fac59a`).
