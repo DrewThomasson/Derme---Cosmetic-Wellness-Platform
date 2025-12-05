@@ -11,3 +11,10 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=development
     restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --url http://web:7860
+    restart: unless-stopped
+    depends_on:
+      - web
