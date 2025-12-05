@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./derme.db:/app/derme.db
+      - ./static/uploads:/app/static/uploads
+    environment:
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+    restart: unless-stopped
