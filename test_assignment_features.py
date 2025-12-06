@@ -43,30 +43,48 @@ class TestAnalyzeIngredients(TestAssignmentFeatures):
 
     def test_analyze_empty_list(self):
         """TC-01: Analyze Empty List"""
+        print("\n" + "-"*50)
+        print("Running TC-01: Analyze Empty List")
+        print("Input: []")
         result = analyze_ingredients([], self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(result['allergens_found'], [])
         self.assertEqual(result['safe_ingredients'], [])
         self.assertEqual(result['warnings'], [])
 
     def test_analyze_safe_ingredients(self):
         """TC-02: Analyze Safe Ingredients"""
+        print("\n" + "-"*50)
+        print("Running TC-02: Analyze Safe Ingredients")
         ingredients = ['Water', 'Glycerin']
+        print(f"Input: {ingredients}")
         result = analyze_ingredients(ingredients, self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(result['safe_ingredients'], ['Water', 'Glycerin'])
         self.assertEqual(result['allergens_found'], [])
 
     def test_analyze_user_allergen_direct(self):
         """TC-03: Analyze User Allergen (Direct)"""
+        print("\n" + "-"*50)
+        print("Running TC-03: Analyze User Allergen (Direct)")
         ingredients = ['Peanut']
+        print(f"Input: {ingredients}")
+        print("Context: User is allergic to 'Peanut'")
         result = analyze_ingredients(ingredients, self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(len(result['allergens_found']), 1)
         self.assertEqual(result['allergens_found'][0]['name'], 'Peanut')
         self.assertEqual(result['allergens_found'][0]['severity'], 'severe')
 
     def test_analyze_user_allergen_synonym(self):
         """TC-04: Analyze User Allergen (Synonym)"""
+        print("\n" + "-"*50)
+        print("Running TC-04: Analyze User Allergen (Synonym)")
         ingredients = ['Arachis hypogaea']
+        print(f"Input: {ingredients}")
+        print("Context: 'Arachis hypogaea' is a synonym for 'Peanut'")
         result = analyze_ingredients(ingredients, self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(len(result['allergens_found']), 1)
         self.assertEqual(result['allergens_found'][0]['name'], 'Arachis hypogaea')
         # Should still detect severity from the primary allergen 'Peanut'
@@ -74,16 +92,25 @@ class TestAnalyzeIngredients(TestAssignmentFeatures):
 
     def test_analyze_known_allergen(self):
         """TC-05: Analyze Known Allergen"""
+        print("\n" + "-"*50)
+        print("Running TC-05: Analyze Known Allergen")
         ingredients = ['Parabens']
+        print(f"Input: {ingredients}")
+        print("Context: 'Parabens' is in the KnownAllergen database")
         result = analyze_ingredients(ingredients, self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(len(result['warnings']), 1)
         self.assertEqual(result['warnings'][0]['name'], 'Parabens')
         self.assertEqual(result['warnings'][0]['category'], 'Preservative')
 
     def test_analyze_mixed_list(self):
         """TC-06: Analyze Mixed List"""
+        print("\n" + "-"*50)
+        print("Running TC-06: Analyze Mixed List")
         ingredients = ['Water', 'Peanut']
+        print(f"Input: {ingredients}")
         result = analyze_ingredients(ingredients, self.user.id)
+        print(f"Output: {result}")
         self.assertEqual(result['safe_ingredients'], ['Water'])
         self.assertEqual(len(result['allergens_found']), 1)
         self.assertEqual(result['allergens_found'][0]['name'], 'Peanut')
@@ -100,25 +127,53 @@ class TestSecurityAnswer(TestAssignmentFeatures):
 
     def test_verify_correct_answer(self):
         """TC-07: Verify Correct Answer"""
-        self.assertTrue(self.user.check_security_answer(1, "Fido"))
+        print("\n" + "-"*50)
+        print("Running TC-07: Verify Correct Answer")
+        print("Question: 1, Answer: 'Fido'")
+        print("Input: 'Fido'")
+        result = self.user.check_security_answer(1, "Fido")
+        print(f"Output: {result}")
+        self.assertTrue(result)
 
     def test_verify_correct_answer_case_space(self):
         """TC-08: Verify Correct Answer (Case/Whitespace)"""
-        self.assertTrue(self.user.check_security_answer(1, "  fido  "))
-        self.assertTrue(self.user.check_security_answer(1, "FIDO"))
+        print("\n" + "-"*50)
+        print("Running TC-08: Verify Correct Answer (Case/Whitespace)")
+        print("Question: 1, Answer: 'Fido'")
+        print("Input: '  fido  '")
+        result = self.user.check_security_answer(1, "  fido  ")
+        print(f"Output: {result}")
+        self.assertTrue(result)
 
     def test_verify_incorrect_answer(self):
         """TC-09: Verify Incorrect Answer"""
-        self.assertFalse(self.user.check_security_answer(1, "Rex"))
+        print("\n" + "-"*50)
+        print("Running TC-09: Verify Incorrect Answer")
+        print("Question: 1, Answer: 'Fido'")
+        print("Input: 'Rex'")
+        result = self.user.check_security_answer(1, "Rex")
+        print(f"Output: {result}")
+        self.assertFalse(result)
 
     def test_verify_empty_answer(self):
         """TC-10: Verify Empty Answer"""
-        self.assertFalse(self.user.check_security_answer(1, ""))
+        print("\n" + "-"*50)
+        print("Running TC-10: Verify Empty Answer")
+        print("Question: 1, Answer: 'Fido'")
+        print("Input: ''")
+        result = self.user.check_security_answer(1, "")
+        print(f"Output: {result}")
+        self.assertFalse(result)
 
     def test_verify_unset_question(self):
         """TC-11: Verify Unset Question"""
-        # Question 2 is not set
-        self.assertFalse(self.user.check_security_answer(2, "Anything"))
+        print("\n" + "-"*50)
+        print("Running TC-11: Verify Unset Question")
+        print("Question: 2 (Not set)")
+        print("Input: 'Anything'")
+        result = self.user.check_security_answer(2, "Anything")
+        print(f"Output: {result}")
+        self.assertFalse(result)
 
 if __name__ == '__main__':
     unittest.main()

@@ -28,4 +28,4 @@ jobs:
         
     - name: Run tests
       run: |
-        python -m unittest test_assignment_features.py
+        python -m unittest -v test_assignment_features.py
